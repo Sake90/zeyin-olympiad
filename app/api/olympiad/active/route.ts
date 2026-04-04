@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/olympiad/active — public, no auth
 // Returns name of the active olympiad (or default fallback)
 export async function GET() {
