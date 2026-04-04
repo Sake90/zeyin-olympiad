@@ -49,7 +49,7 @@ const LETTER_STYLE: React.CSSProperties = {
 function AnimatedTitle({ text, className }: { text: string; className?: string }) {
   return (
     <div className={className}>
-      {[...text].map((char, i) => (
+      {Array.from(text).map((char, i) => (
         <span key={i} style={{
           ...LETTER_STYLE,
           animation: `letterBounce 3s linear ${i * 60}ms infinite, titleShimmer 3s ease-in-out infinite`,
