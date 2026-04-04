@@ -4,21 +4,14 @@ import { createServiceClient } from '@/lib/supabase'
 import LoginClient from './LoginClient'
 
 export default async function LoginPage() {
-  let data = null
-  try {
-    const db = createServiceClient()
-    const result = await db
-      .from('olympiads')
-      .select('name_ru, name_kz, status')
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single()
-    console.log('[login] supabase result:', JSON.stringify({ data: result.data, error: result.error }))
-    data = result.data
-  } catch (err) {
-    console.error('[login] supabase threw:', err)
-  }
+  const db = createServiceClient()
+  const { data } = await db
+    .from('olympiads')
+    .select('name_ru, name_kz')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
 
   if (!data) {
     return (
