@@ -15,8 +15,13 @@ export async function GET() {
     .limit(1)
     .single()
 
+  if (!data) {
+    return NextResponse.json({ active: false })
+  }
+
   return NextResponse.json({
-    name_ru: data?.name_ru ?? 'ZEYIN OLYMPIAD',
-    name_kz: data?.name_kz ?? 'ZEYIN OLYMPIAD',
+    active: true,
+    name_ru: data.name_ru,
+    name_kz: data.name_kz,
   })
 }

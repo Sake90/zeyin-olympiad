@@ -11,13 +11,23 @@ export default function LoginPage() {
   const [language, setLanguage] = useState<'ru' | 'kz'>('kz')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [olympiadNames, setOlympiadNames] = useState<{ name_ru: string; name_kz: string } | null>(null)
+  const [olympiadState, setOlympiadState] = useState<
+    | { status: 'loading' }
+    | { status: 'closed' }
+    | { status: 'active'; name_ru: string; name_kz: string }
+  >({ status: 'loading' })
 
   useEffect(() => {
     fetch('/api/olympiad/active')
       .then(r => r.json())
-      .then(data => setOlympiadNames(data))
-      .catch(() => {})
+      .then(data => {
+        if (data.active) {
+          setOlympiadState({ status: 'active', name_ru: data.name_ru, name_kz: data.name_kz })
+        } else {
+          setOlympiadState({ status: 'closed' })
+        }
+      })
+      .catch(() => setOlympiadState({ status: 'closed' }))
   }, [])
 
 
@@ -65,6 +75,26 @@ export default function LoginPage() {
     }
   }
 
+  if (olympiadState.status === 'loading') {
+    return null
+  }
+
+  if (olympiadState.status === 'closed') {
+    return (
+      <div style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#fff',
+      }}>
+        <p style={{ fontSize: 20, color: '#888', fontFamily: 'sans-serif' }}>
+          Скоро открытие
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="phone-bg"
       style={{ background: 'radial-gradient(ellipse at top left, #061a1a 0%, #06100f 60%)' }}>
@@ -74,7 +104,7 @@ export default function LoginPage() {
         <OlympiadHeader
           typewriter
           banner="/banner-login.jpg"
-          title={olympiadNames ? (language === 'kz' ? olympiadNames.name_kz : olympiadNames.name_ru) : undefined}
+          title={language === 'kz' ? olympiadState.name_kz : olympiadState.name_ru}
         />
 
         <div className="flex flex-1 flex-col px-5 pb-8 pt-4">
