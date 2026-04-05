@@ -4,8 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import OlympiadHeader from '@/components/OlympiadHeader'
 
-export default function LoginClient({ name_ru, name_kz }: { name_ru: string; name_kz: string }) {
+type Olympiad = { id: string; name_ru: string; name_kz: string }
+
+export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
   const router = useRouter()
+  const [selected, setSelected] = useState<Olympiad | null>(
+    olympiads.length === 1 ? olympiads[0] : null
+  )
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
   const [language, setLanguage] = useState<'ru' | 'kz'>('kz')
@@ -19,6 +24,7 @@ export default function LoginClient({ name_ru, name_kz }: { name_ru: string; nam
       passwordPlaceholder: 'Пароль',
       submit: 'Войти',
       loading: 'Вход...',
+      pick: 'Выберите олимпиаду',
     },
     kz: {
       title: 'Олимпиадаға кіру',
@@ -26,6 +32,7 @@ export default function LoginClient({ name_ru, name_kz }: { name_ru: string; nam
       passwordPlaceholder: 'Құпия сөз',
       submit: 'Кіру',
       loading: 'Жүктелуде...',
+      pick: 'Олимпиаданы таңдаңыз',
     },
   }[language]
 
@@ -52,6 +59,63 @@ export default function LoginClient({ name_ru, name_kz }: { name_ru: string; nam
     }
   }
 
+  // ── Язык-переключатель (показывается всегда) ───────────────────
+  const langToggle = (
+    <div className="mb-6 flex overflow-hidden rounded-xl border border-zeyin-border">
+      {(['kz', 'ru'] as const).map(lang => (
+        <button
+          key={lang}
+          onClick={() => setLanguage(lang)}
+          className="flex-1 py-3 text-sm font-bold transition-all"
+          style={{
+            background: language === lang
+              ? 'linear-gradient(135deg, #0fa8a8, #1ec8c8)'
+              : '#0c1a19',
+            color: language === lang ? '#06100f' : '#4a7070',
+          }}>
+          {lang === 'ru' ? 'Русская группа' : 'Қазақ тобы'}
+        </button>
+      ))}
+    </div>
+  )
+
+  // ── Выбор олимпиады (если их несколько и ещё не выбрана) ───────
+  if (!selected) {
+    return (
+      <div className="phone-bg"
+        style={{ background: 'radial-gradient(ellipse at top left, #061a1a 0%, #06100f 60%)' }}>
+        <div className="phone-card relative mx-auto">
+          <OlympiadHeader banner="/banner-login.jpg" />
+
+          <div className="flex flex-1 flex-col px-5 pb-8 pt-4">
+            {langToggle}
+
+            <h1 className="mb-5 text-center text-lg font-black text-[#b2e8e8]">
+              {t.pick}
+            </h1>
+
+            <div className="flex flex-col gap-3">
+              {olympiads.map(o => (
+                <button
+                  key={o.id}
+                  onClick={() => setSelected(o)}
+                  className="rounded-2xl border border-zeyin-border bg-zeyin-card px-5 py-4 text-left text-base font-bold text-[#b2e8e8] transition-all hover:border-zeyin-teal">
+                  {language === 'kz' ? o.name_kz : o.name_ru}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-auto pt-8 text-center font-mono text-[13px] uppercase"
+              style={{ color: '#1ec8c8' }}>
+              ZEYIN OQU ORTALYGY • 2026
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Форма входа ────────────────────────────────────────────────
   return (
     <div className="phone-bg"
       style={{ background: 'radial-gradient(ellipse at top left, #061a1a 0%, #06100f 60%)' }}>
@@ -60,26 +124,21 @@ export default function LoginClient({ name_ru, name_kz }: { name_ru: string; nam
         <OlympiadHeader
           typewriter
           banner="/banner-login.jpg"
-          title={language === 'kz' ? name_kz : name_ru}
+          title={language === 'kz' ? selected.name_kz : selected.name_ru}
         />
 
         <div className="flex flex-1 flex-col px-5 pb-8 pt-4">
-          <div className="mb-6 flex overflow-hidden rounded-xl border border-zeyin-border">
-            {(['kz', 'ru'] as const).map(lang => (
-              <button
-                key={lang}
-                onClick={() => setLanguage(lang)}
-                className="flex-1 py-3 text-sm font-bold transition-all"
-                style={{
-                  background: language === lang
-                    ? 'linear-gradient(135deg, #0fa8a8, #1ec8c8)'
-                    : '#0c1a19',
-                  color: language === lang ? '#06100f' : '#4a7070',
-                }}>
-                {lang === 'ru' ? 'Русская группа' : 'Қазақ тобы'}
-              </button>
-            ))}
-          </div>
+          {langToggle}
+
+          {/* Кнопка «назад» если олимпиад несколько */}
+          {olympiads.length > 1 && (
+            <button
+              onClick={() => setSelected(null)}
+              className="mb-4 text-left text-sm"
+              style={{ color: '#4a7070' }}>
+              ← {t.pick}
+            </button>
+          )}
 
           <h1 className="mb-5 text-center text-lg font-black text-[#b2e8e8]">
             {t.title}

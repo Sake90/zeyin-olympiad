@@ -7,13 +7,13 @@ export default async function LoginPage() {
   const db = createServiceClient()
   const { data } = await db
     .from('olympiads')
-    .select('name_ru, name_kz')
-    .eq('status', 'active')
+    .select('id, name_ru, name_kz')
+    .in('status', ['active', 'registration'])
     .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
 
-  if (!data) {
+  const olympiads = data ?? []
+
+  if (olympiads.length === 0) {
     return (
       <div style={{
         minHeight: '100dvh',
@@ -29,5 +29,5 @@ export default async function LoginPage() {
     )
   }
 
-  return <LoginClient name_ru={data.name_ru} name_kz={data.name_kz} />
+  return <LoginClient olympiads={olympiads} />
 }
