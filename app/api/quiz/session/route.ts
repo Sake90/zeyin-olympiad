@@ -32,18 +32,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ olympiad, session: null, questions: [], answers: [], language: session.language })
     }
 
-    // Get questions WITHOUT correct_option
-    const { data: questions } = await db
-      .from('questions')
-      .select('id, type, question_ru, question_kz, option_a_ru, option_b_ru, option_c_ru, option_d_ru, option_a_kz, option_b_kz, option_c_kz, option_d_kz, youtube_url_ru, youtube_url_kz, order_num')
-      .eq('olympiad_id', session.olympiadId)
-      .order('order_num')
-
-    // Get existing answers
-    const { data: answers } = await db
-      .from('answers')
-      .select('question_id, selected_option')
-      .eq('student_id', session.studentId)
+    // Fetch questions and answers in parallel
+    const [{ data: questions }, { data: answers }] = await Promise.all([
+      db.from('questions')
+        .select('id, type, question_ru, question_kz, option_a_ru, option_b_ru, option_c_ru, option_d_ru, option_a_kz, option_b_kz, option_c_kz, option_d_kz, youtube_url_ru, youtube_url_kz, order_num')
+        .eq('olympiad_id', session.olympiadId)
+        .order('order_num'),
+      db.from('answers')
+        .select('question_id, selected_option')
+        .eq('student_id', session.studentId),
+    ])
 
     return NextResponse.json({
       olympiad,
@@ -86,17 +84,16 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (existing) {
-      // Return existing session
-      const { data: questions } = await db
-        .from('questions')
-        .select('id, type, question_ru, question_kz, option_a_ru, option_b_ru, option_c_ru, option_d_ru, option_a_kz, option_b_kz, option_c_kz, option_d_kz, youtube_url_ru, youtube_url_kz, order_num')
-        .eq('olympiad_id', session.olympiadId)
-        .order('order_num')
-
-      const { data: answers } = await db
-        .from('answers')
-        .select('question_id, selected_option')
-        .eq('student_id', session.studentId)
+      // Return existing session — fetch questions and answers in parallel
+      const [{ data: questions }, { data: answers }] = await Promise.all([
+        db.from('questions')
+          .select('id, type, question_ru, question_kz, option_a_ru, option_b_ru, option_c_ru, option_d_ru, option_a_kz, option_b_kz, option_c_kz, option_d_kz, youtube_url_ru, youtube_url_kz, order_num')
+          .eq('olympiad_id', session.olympiadId)
+          .order('order_num'),
+        db.from('answers')
+          .select('question_id, selected_option')
+          .eq('student_id', session.studentId),
+      ])
 
       return NextResponse.json({ session: existing, questions: questions ?? [], answers: answers ?? [], language: session.language })
     }

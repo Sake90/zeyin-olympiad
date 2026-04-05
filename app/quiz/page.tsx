@@ -95,6 +95,7 @@ export default function QuizPage() {
 
   function selectAnswer(option: string) {
     const q = questions[current]; if (!q) return
+    if (answers[q.id] === option) return // already saved, skip
     setAnswers(prev => ({ ...prev, [q.id]: option }))
     saveAnswer(q.id, option)
   }

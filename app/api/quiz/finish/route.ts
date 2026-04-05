@@ -31,26 +31,21 @@ export async function POST(req: NextRequest) {
       if (existing) return NextResponse.json(existing)
     }
 
-    // Get olympiad cert ranges + subjects
-    const { data: olympiad } = await db
-      .from('olympiads')
-      .select('cert_range_winner_min, cert_range_prize_min, cert_range_pass_min, subjects')
-      .eq('id', session.olympiadId)
-      .single()
+    // Fetch olympiad, questions, and answers in parallel
+    const [{ data: olympiad }, { data: questions }, { data: answers }] = await Promise.all([
+      db.from('olympiads')
+        .select('cert_range_winner_min, cert_range_prize_min, cert_range_pass_min, subjects')
+        .eq('id', session.olympiadId)
+        .single(),
+      db.from('questions')
+        .select('id, correct_option, order_num')
+        .eq('olympiad_id', session.olympiadId),
+      db.from('answers')
+        .select('question_id, selected_option')
+        .eq('student_id', session.studentId),
+    ])
 
     if (!olympiad) return NextResponse.json({ error: 'Olympiad not found' }, { status: 404 })
-
-    // Get all questions with correct answers + order
-    const { data: questions } = await db
-      .from('questions')
-      .select('id, correct_option, order_num')
-      .eq('olympiad_id', session.olympiadId)
-
-    // Get student answers
-    const { data: answers } = await db
-      .from('answers')
-      .select('question_id, selected_option')
-      .eq('student_id', session.studentId)
 
     const total = (questions ?? []).length
     const answerMap = new Map((answers ?? []).map(a => [a.question_id, a.selected_option]))

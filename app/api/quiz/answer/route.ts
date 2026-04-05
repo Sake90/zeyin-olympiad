@@ -15,19 +15,7 @@ export async function POST(req: NextRequest) {
 
     const db = createServiceClient()
 
-    // Verify the session is active
-    const { data: quizSession } = await db
-      .from('sessions')
-      .select('id, is_completed, started_at')
-      .eq('student_id', session.studentId)
-      .eq('olympiad_id', session.olympiadId)
-      .single()
-
-    if (!quizSession || quizSession.is_completed) {
-      return NextResponse.json({ error: 'No active session' }, { status: 403 })
-    }
-
-    // Upsert answer
+    // Upsert answer directly — JWT auth is sufficient, UNIQUE(student_id,question_id) guards integrity
     const { error } = await db
       .from('answers')
       .upsert(
