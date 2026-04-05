@@ -10,7 +10,7 @@ export async function GET() {
   const { data } = await db
     .from('olympiads')
     .select('name_ru, name_kz')
-    .eq('status', 'active')
+    .in('status', ['active', 'registration'])
     .order('created_at', { ascending: false })
     .limit(1)
     .single()
