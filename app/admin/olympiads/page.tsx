@@ -23,6 +23,10 @@ interface Olympiad {
   subjects: Subject[] | null
 }
 
+function toLocalString(utcTime: string) {
+  return new Date(utcTime).toLocaleString('ru', { timeZone: 'Asia/Qyzylorda' })
+}
+
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Черновик', registration: 'Регистрация', active: 'Активна', finished: 'Завершена',
 }
@@ -100,7 +104,9 @@ export default function OlympiadsPage() {
       name_ru: f.name_ru.trim(),
       name_kz: f.name_kz.trim(),
       subject: f.subject.trim() || null,
-      start_time: f.start_time || null,
+      start_time: f.start_time
+        ? new Date(f.start_time + ':00+05:00').toISOString()
+        : null,
       duration_minutes: Number(f.duration_minutes),
       intro_video_url: f.intro_video_url.trim() || null,
       intro_text_ru: f.intro_text_ru.trim() || null,
@@ -325,7 +331,7 @@ export default function OlympiadsPage() {
                 <div className="mt-0.5 text-xs text-gray-400">{o.name_kz}</div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-3 font-mono text-xs text-gray-400">
                   <span>{o.duration_minutes} мин</span>
-                  {o.start_time && <span>{new Date(o.start_time).toLocaleString('ru')}</span>}
+                  {o.start_time && <span>{toLocalString(o.start_time)}</span>}
                   <span>🥇≥{o.cert_range_winner_min}% 🥈≥{o.cert_range_prize_min}%</span>
                   {o.intro_video_url && <span className="text-orange-400">▶ видео</span>}
                   {o.intro_text_ru && <span className="text-[#1ec8c8]">✎ правила</span>}
