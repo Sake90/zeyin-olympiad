@@ -204,8 +204,6 @@ export default function ResultPage() {
   const passed = result.passed_to_round2
   const outroEmbedUrl = toEmbedUrl(result.olympiad?.outro_video_url ?? null)
 
-  const certBtn = lang === 'kz' ? '📄 Сертификатты жүктеу' : '📄 Скачать сертификат'
-
   const passedMsg = lang === 'kz'
     ? 'Сен — Zeyin Суперагентісің!\nСені 2-ші турда күтеміз!'
     : 'Ты — Суперагент Zeyin!\nЖдём тебя во втором туре!'
@@ -349,18 +347,7 @@ export default function ResultPage() {
             </div>
           )}
 
-          {/* Certificate button */}
-          <button
-            onClick={() => router.push('/certificate')}
-            style={{
-              width: '100%', padding: '16px',
-              background: 'linear-gradient(135deg, #0fa8a8, #1ec8c8)',
-              border: 'none', borderRadius: 14, color: '#06100f',
-              fontSize: 15, fontWeight: 'bold', cursor: 'pointer',
-              fontFamily: 'sans-serif', boxShadow: '0 8px 24px rgba(30,200,200,0.27)',
-            }}>
-            {certBtn}
-          </button>
+
         </div>
       </div>
     </div>

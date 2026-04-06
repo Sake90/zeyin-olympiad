@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ZeyinLogo from '@/components/ZeyinLogo'
 
@@ -54,8 +54,6 @@ export default function CertificatePage() {
   const router = useRouter()
   const [data, setData] = useState<CertData | null>(null)
   const [error, setError] = useState('')
-  const certRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     fetch('/api/quiz/result')
       .then(r => {
@@ -66,38 +64,6 @@ export default function CertificatePage() {
       .then(d => { if (d) setData(d) })
       .catch(() => setError('Ошибка загрузки'))
   }, [router])
-
-  // Auto-print when opened with ?print=1 (fallback from failed PDF generation)
-  useEffect(() => {
-    if (!data) return
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('print') === '1') {
-      setTimeout(() => window.print(), 600)
-    }
-  }, [data])
-
-  const [downloading, setDownloading] = useState(false)
-
-  async function handleDownloadPdf() {
-    setDownloading(true)
-    try {
-      const res = await fetch('/api/certificate/pdf')
-      if (!res.ok) {
-        // Fallback: open certificate in new tab and trigger browser print-to-PDF
-        window.open('/certificate?print=1', '_blank')
-        return
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'certificate.pdf'
-      a.click()
-      URL.revokeObjectURL(url)
-    } finally {
-      setDownloading(false)
-    }
-  }
 
   function handlePrint() {
     window.print()
@@ -133,16 +99,11 @@ export default function CertificatePage() {
             className="rounded-xl border border-[#0f2422] px-3 py-2 text-sm text-[#4a7070] hover:text-[#1ec8c8]">
             🖨 {lang === 'kz' ? 'Басып шығару' : 'Распечатать'}
           </button>
-          <button onClick={handleDownloadPdf} disabled={downloading}
-            className="rounded-xl px-4 py-2 text-sm font-bold text-[#06100f] disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, #0fa8a8, #1ec8c8)' }}>
-            {downloading ? '...' : `↓ PDF`}
-          </button>
         </div>
       </div>
 
       {/* Certificate */}
-      <div ref={certRef}
+      <div
         className="w-full max-w-[430px] rounded-3xl md:max-w-2xl"
         style={{
           position: 'relative',
