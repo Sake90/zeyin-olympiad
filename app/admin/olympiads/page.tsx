@@ -20,6 +20,7 @@ interface Olympiad {
   cert_range_winner_min: number
   cert_range_prize_min: number
   cert_range_pass_min: number
+  target_grades: string[]
   subjects: Subject[] | null
 }
 
@@ -44,6 +45,7 @@ type FormData = {
   intro_video_url: string; intro_text_ru: string; intro_text_kz: string
   outro_video_url: string
   cert_range_winner_min: string; cert_range_prize_min: string; cert_range_pass_min: string
+  target_grades: string
 }
 
 const emptyForm: FormData = {
@@ -51,6 +53,7 @@ const emptyForm: FormData = {
   intro_video_url: '', intro_text_ru: '', intro_text_kz: '',
   outro_video_url: '',
   cert_range_winner_min: '90', cert_range_prize_min: '75', cert_range_pass_min: '50',
+  target_grades: '',
 }
 
 function toFormData(o: Olympiad): FormData {
@@ -67,6 +70,7 @@ function toFormData(o: Olympiad): FormData {
     cert_range_winner_min: String(o.cert_range_winner_min),
     cert_range_prize_min: String(o.cert_range_prize_min),
     cert_range_pass_min: String(o.cert_range_pass_min),
+    target_grades: (o.target_grades ?? []).join(', '),
   }
 }
 
@@ -115,6 +119,10 @@ export default function OlympiadsPage() {
       cert_range_winner_min: Number(f.cert_range_winner_min),
       cert_range_prize_min: Number(f.cert_range_prize_min),
       cert_range_pass_min: Number(f.cert_range_pass_min),
+      target_grades: f.target_grades
+        .split(/[,;\s]+/)
+        .map(g => g.trim())
+        .filter(Boolean),
       subjects: subjects.filter(s => s.name_ru.trim()).map(s => ({
         name_ru: s.name_ru.trim(),
         name_kz: s.name_kz.trim(),
@@ -202,6 +210,7 @@ export default function OlympiadsPage() {
               { key: 'subject', label: 'Предмет' },
               { key: 'start_time', label: 'Время старта', type: 'datetime-local' },
               { key: 'duration_minutes', label: 'Длительность (мин)', type: 'number' },
+              { key: 'target_grades', label: 'Классы (через запятую, напр. 5, 6)' },
             ] as const).map(f => (
               <div key={f.key}>
                 <label className="mb-1 block text-xs text-gray-500">{f.label}</label>
@@ -333,6 +342,7 @@ export default function OlympiadsPage() {
                   <span>{o.duration_minutes} мин</span>
                   {o.start_time && <span>{toLocalString(o.start_time)}</span>}
                   <span>🥇≥{o.cert_range_winner_min}% 🥈≥{o.cert_range_prize_min}%</span>
+                  {o.target_grades?.length > 0 && <span>{o.target_grades.join(', ')} кл.</span>}
                   {o.intro_video_url && <span className="text-orange-400">▶ видео</span>}
                   {o.intro_text_ru && <span className="text-[#1ec8c8]">✎ правила</span>}
                 </div>

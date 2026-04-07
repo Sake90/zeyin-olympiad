@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       name_ru, name_kz, subject, start_time, duration_minutes,
       intro_video_url, intro_text_ru, intro_text_kz, outro_video_url,
       cert_range_winner_min, cert_range_prize_min, cert_range_pass_min,
+      target_grades,
     } = body
 
     if (!name_ru || !name_kz) {
@@ -67,6 +68,7 @@ export async function POST(req: NextRequest) {
         cert_range_winner_min: cert_range_winner_min ?? 90,
         cert_range_prize_min: cert_range_prize_min ?? 75,
         cert_range_pass_min: cert_range_pass_min ?? 50,
+        target_grades: target_grades ?? [],
       })
       .select()
       .single()

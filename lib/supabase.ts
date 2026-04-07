@@ -42,6 +42,7 @@ export interface Olympiad {
   cert_range_winner_min: number
   cert_range_prize_min: number
   cert_range_pass_min: number
+  target_grades: string[]
   created_at: string
 }
 
