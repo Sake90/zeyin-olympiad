@@ -14,7 +14,7 @@ interface ResultData {
   language: 'ru' | 'kz'
   subject_scores: SubjectScore[] | null
   student: { full_name: string; grade: string | null } | null
-  olympiad: { name_ru: string; name_kz: string; outro_video_url: string | null } | null
+  olympiad: { name_ru: string; name_kz: string; outro_video_url_ru: string | null; outro_video_url_kz: string | null } | null
 }
 
 function toEmbedUrl(url: string | null): string | null {
@@ -186,7 +186,7 @@ export default function ResultPage() {
       .then(data => {
         if (data) {
           setResult(data)
-          if (data.olympiad?.outro_video_url) setPhase('video')
+          if (data.olympiad?.outro_video_url_ru || data.olympiad?.outro_video_url_kz) setPhase('video')
         }
       })
       .catch(() => setError('Ошибка загрузки'))
@@ -202,7 +202,8 @@ export default function ResultPage() {
 
   const lang = result.language
   const passed = result.passed_to_round2
-  const outroEmbedUrl = toEmbedUrl(result.olympiad?.outro_video_url ?? null)
+  const outroRaw = lang === 'kz' ? result.olympiad?.outro_video_url_kz : result.olympiad?.outro_video_url_ru
+  const outroEmbedUrl = toEmbedUrl(outroRaw ?? null)
 
   const passedMsg = lang === 'kz'
     ? 'Сен — Zeyin Суперагентісің!\nСені 2-ші турда күтеміз!'

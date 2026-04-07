@@ -19,7 +19,8 @@ interface OlympiadInfo {
   duration_minutes: number
   intro_text_ru: string | null
   intro_text_kz: string | null
-  intro_video_url: string | null
+  intro_video_url_ru: string | null
+  intro_video_url_kz: string | null
 }
 
 const STATUS_LABELS: Record<string, { ru: string; kz: string }> = {
@@ -113,7 +114,7 @@ export default function IntroPage() {
   const notActive = !isActive && olympiad.status !== 'finished'
   const introText = lang === 'kz' ? olympiad.intro_text_kz : olympiad.intro_text_ru
   const olympiadName = lang === 'kz' ? olympiad.name_kz : olympiad.name_ru
-  const videoUrl = toEmbedUrl(olympiad.intro_video_url)
+  const videoUrl = toEmbedUrl(lang === 'kz' ? olympiad.intro_video_url_kz : olympiad.intro_video_url_ru)
 
   const t = {
     start: lang === 'kz' ? 'Бастау' : 'Начать олимпиаду',

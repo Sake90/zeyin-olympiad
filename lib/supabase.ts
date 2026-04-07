@@ -36,9 +36,12 @@ export interface Olympiad {
   start_time: string | null
   duration_minutes: number
   status: OlympiadStatus
-  intro_video_url: string | null
+  intro_video_url_ru: string | null
+  intro_video_url_kz: string | null
   intro_text_ru: string | null
   intro_text_kz: string | null
+  outro_video_url_ru: string | null
+  outro_video_url_kz: string | null
   cert_range_winner_min: number
   cert_range_prize_min: number
   cert_range_pass_min: number

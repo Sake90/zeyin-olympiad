@@ -13,10 +13,12 @@ interface Olympiad {
   start_time: string | null
   duration_minutes: number
   status: 'draft' | 'registration' | 'active' | 'finished'
-  intro_video_url: string | null
+  intro_video_url_ru: string | null
+  intro_video_url_kz: string | null
   intro_text_ru: string | null
   intro_text_kz: string | null
-  outro_video_url: string | null
+  outro_video_url_ru: string | null
+  outro_video_url_kz: string | null
   cert_range_winner_min: number
   cert_range_prize_min: number
   cert_range_pass_min: number
@@ -42,16 +44,18 @@ const textareaCls = 'w-full resize-none rounded-xl border border-gray-200 bg-gra
 type FormData = {
   name_ru: string; name_kz: string; subject: string
   start_time: string; duration_minutes: string
-  intro_video_url: string; intro_text_ru: string; intro_text_kz: string
-  outro_video_url: string
+  intro_video_url_ru: string; intro_video_url_kz: string
+  intro_text_ru: string; intro_text_kz: string
+  outro_video_url_ru: string; outro_video_url_kz: string
   cert_range_winner_min: string; cert_range_prize_min: string; cert_range_pass_min: string
   target_grades: string
 }
 
 const emptyForm: FormData = {
   name_ru: '', name_kz: '', subject: '', start_time: '', duration_minutes: '60',
-  intro_video_url: '', intro_text_ru: '', intro_text_kz: '',
-  outro_video_url: '',
+  intro_video_url_ru: '', intro_video_url_kz: '',
+  intro_text_ru: '', intro_text_kz: '',
+  outro_video_url_ru: '', outro_video_url_kz: '',
   cert_range_winner_min: '90', cert_range_prize_min: '75', cert_range_pass_min: '50',
   target_grades: '',
 }
@@ -63,10 +67,12 @@ function toFormData(o: Olympiad): FormData {
     subject: o.subject ?? '',
     start_time: o.start_time ? new Date(o.start_time).toISOString().slice(0, 16) : '',
     duration_minutes: String(o.duration_minutes),
-    intro_video_url: o.intro_video_url ?? '',
+    intro_video_url_ru: o.intro_video_url_ru ?? '',
+    intro_video_url_kz: o.intro_video_url_kz ?? '',
     intro_text_ru: o.intro_text_ru ?? '',
     intro_text_kz: o.intro_text_kz ?? '',
-    outro_video_url: o.outro_video_url ?? '',
+    outro_video_url_ru: o.outro_video_url_ru ?? '',
+    outro_video_url_kz: o.outro_video_url_kz ?? '',
     cert_range_winner_min: String(o.cert_range_winner_min),
     cert_range_prize_min: String(o.cert_range_prize_min),
     cert_range_pass_min: String(o.cert_range_pass_min),
@@ -112,10 +118,12 @@ export default function OlympiadsPage() {
         ? new Date(f.start_time + ':00+05:00').toISOString()
         : null,
       duration_minutes: Number(f.duration_minutes),
-      intro_video_url: f.intro_video_url.trim() || null,
+      intro_video_url_ru: f.intro_video_url_ru.trim() || null,
+      intro_video_url_kz: f.intro_video_url_kz.trim() || null,
       intro_text_ru: f.intro_text_ru.trim() || null,
       intro_text_kz: f.intro_text_kz.trim() || null,
-      outro_video_url: f.outro_video_url.trim() || null,
+      outro_video_url_ru: f.outro_video_url_ru.trim() || null,
+      outro_video_url_kz: f.outro_video_url_kz.trim() || null,
       cert_range_winner_min: Number(f.cert_range_winner_min),
       cert_range_prize_min: Number(f.cert_range_prize_min),
       cert_range_pass_min: Number(f.cert_range_pass_min),
@@ -241,17 +249,31 @@ export default function OlympiadsPage() {
           </div>
 
           {/* Intro video */}
-          <div className="mt-3">
-            <label className="mb-1 block text-xs text-gray-500">YouTube ссылка (вводное видео — перед стартом)</label>
-            <input type="url" value={form.intro_video_url} onChange={set('intro_video_url')}
-              placeholder="https://youtu.be/..." className={inputCls} />
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Вводное видео — рус</label>
+              <input type="url" value={form.intro_video_url_ru} onChange={set('intro_video_url_ru')}
+                placeholder="https://youtu.be/..." className={inputCls} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Вводное видео — каз</label>
+              <input type="url" value={form.intro_video_url_kz} onChange={set('intro_video_url_kz')}
+                placeholder="https://youtu.be/..." className={inputCls} />
+            </div>
           </div>
 
           {/* Outro video */}
-          <div className="mt-3">
-            <label className="mb-1 block text-xs text-gray-500">YouTube ссылка (финальное видео — после завершения)</label>
-            <input type="url" value={form.outro_video_url} onChange={set('outro_video_url')}
-              placeholder="https://youtu.be/..." className={inputCls} />
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Финальное видео — рус</label>
+              <input type="url" value={form.outro_video_url_ru} onChange={set('outro_video_url_ru')}
+                placeholder="https://youtu.be/..." className={inputCls} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Финальное видео — каз</label>
+              <input type="url" value={form.outro_video_url_kz} onChange={set('outro_video_url_kz')}
+                placeholder="https://youtu.be/..." className={inputCls} />
+            </div>
           </div>
 
           {/* Subjects */}
@@ -343,7 +365,7 @@ export default function OlympiadsPage() {
                   {o.start_time && <span>{toLocalString(o.start_time)}</span>}
                   <span>🥇≥{o.cert_range_winner_min}% 🥈≥{o.cert_range_prize_min}%</span>
                   {o.target_grades?.length > 0 && <span>{o.target_grades.join(', ')} кл.</span>}
-                  {o.intro_video_url && <span className="text-orange-400">▶ видео</span>}
+                  {(o.intro_video_url_ru || o.intro_video_url_kz) && <span className="text-orange-400">▶ видео</span>}
                   {o.intro_text_ru && <span className="text-[#1ec8c8]">✎ правила</span>}
                 </div>
               </div>

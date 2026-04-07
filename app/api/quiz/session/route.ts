@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
     const { data: olympiad, error: oErr } = await db
       .from('olympiads')
-      .select('id, name_ru, name_kz, subject, start_time, duration_minutes, status, intro_video_url, intro_text_ru, intro_text_kz, cert_range_winner_min, cert_range_prize_min, cert_range_pass_min')
+      .select('id, name_ru, name_kz, subject, start_time, duration_minutes, status, intro_video_url_ru, intro_video_url_kz, intro_text_ru, intro_text_kz, cert_range_winner_min, cert_range_prize_min, cert_range_pass_min')
       .eq('id', session.olympiadId)
       .single()
 

@@ -42,7 +42,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const {
       name_ru, name_kz, subject, start_time, duration_minutes,
-      intro_video_url, intro_text_ru, intro_text_kz, outro_video_url,
+      intro_video_url_ru, intro_video_url_kz,
+      intro_text_ru, intro_text_kz,
+      outro_video_url_ru, outro_video_url_kz,
       cert_range_winner_min, cert_range_prize_min, cert_range_pass_min,
       target_grades,
     } = body
@@ -61,10 +63,12 @@ export async function POST(req: NextRequest) {
         start_time: start_time ?? null,
         duration_minutes: duration_minutes ?? 60,
         status: 'draft',
-        intro_video_url: intro_video_url?.trim() ?? null,
+        intro_video_url_ru: intro_video_url_ru?.trim() ?? null,
+        intro_video_url_kz: intro_video_url_kz?.trim() ?? null,
         intro_text_ru: intro_text_ru?.trim() ?? null,
         intro_text_kz: intro_text_kz?.trim() ?? null,
-        outro_video_url: outro_video_url?.trim() ?? null,
+        outro_video_url_ru: outro_video_url_ru?.trim() ?? null,
+        outro_video_url_kz: outro_video_url_kz?.trim() ?? null,
         cert_range_winner_min: cert_range_winner_min ?? 90,
         cert_range_prize_min: cert_range_prize_min ?? 75,
         cert_range_pass_min: cert_range_pass_min ?? 50,

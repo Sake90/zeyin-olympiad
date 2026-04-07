@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     // Also get student info and olympiad name for display
     const [{ data: student }, { data: olympiad }] = await Promise.all([
       db.from('students').select('full_name, grade, school, language').eq('id', session.studentId).single(),
-      db.from('olympiads').select('name_ru, name_kz, outro_video_url').eq('id', session.olympiadId).single(),
+      db.from('olympiads').select('name_ru, name_kz, outro_video_url_ru, outro_video_url_kz').eq('id', session.olympiadId).single(),
     ])
 
     return NextResponse.json({ ...result, student, olympiad, language: session.language })
