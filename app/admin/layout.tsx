@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import ZeyinLogo from '@/components/ZeyinLogo'
+import { ToastProvider } from '@/components/admin/Toast'
 
 const NAV = [
   { href: '/admin', label: 'Дашборд', icon: '◈' },
@@ -10,6 +11,8 @@ const NAV = [
   { href: '/admin/students', label: 'Ученики', icon: '👤' },
   { href: '/admin/questions', label: 'Вопросы', icon: '?' },
   { href: '/admin/results', label: 'Результаты', icon: '📊' },
+  { href: '/admin/courses', label: 'Курсы', icon: '📚' },
+  { href: '/admin/settings', label: 'Настройки', icon: '⚙️' },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +25,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
+    <ToastProvider>
     <div className="flex min-h-screen" style={{ background: '#f5f7fa', color: '#1a1a1a' }}>
       {/* Sidebar */}
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-gray-200 bg-white">
@@ -73,5 +77,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
     </div>
+    </ToastProvider>
   )
 }

@@ -112,3 +112,117 @@ export interface Result {
   passed_to_round2: boolean
   completed_at: string
 }
+
+// ─── Platform config & reference tables ──────────────────────────────────────
+
+export type ConfigCategory = 'test' | 'xp' | 'streak' | 'bird' | 'diagnostic'
+export type ConfigValueType = 'number' | 'boolean' | 'text'
+
+export interface PlatformConfig {
+  key: string
+  value: string
+  label_ru: string | null
+  label_kz: string | null
+  description_ru: string | null
+  category: ConfigCategory
+  value_type: ConfigValueType
+  updated_at: string
+}
+
+export interface ExplanationStyle {
+  id: string
+  code: string
+  name_ru: string
+  name_kz: string
+  icon: string | null
+  order_num: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface XpLevel {
+  id: string
+  code: string
+  name_ru: string
+  name_kz: string
+  icon: string | null
+  min_xp: number
+  order_num: number
+  created_at: string
+}
+
+export interface BirdStage {
+  id: string
+  code: string
+  name_ru: string
+  name_kz: string
+  icon: string | null
+  min_days_active: number
+  order_num: number
+  created_at: string
+}
+
+export interface BirdMood {
+  id: string
+  code: string
+  name_ru: string
+  name_kz: string
+  trigger_ru: string | null
+  trigger_kz: string | null
+  css_animation: string | null
+  icon: string | null
+  order_num: number
+  created_at: string
+}
+
+// ─── Courses / topics / lessons ──────────────────────────────────────────────
+
+export interface Course {
+  id: string
+  title_ru: string
+  title_kz: string
+  subject: string | null
+  grade: string | null
+  order_num: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface Topic {
+  id: string
+  course_id: string
+  title_ru: string
+  title_kz: string
+  order_num: number
+  is_published: boolean
+  created_at: string
+}
+
+export interface Explanation {
+  id: string
+  topic_id: string
+  style_code: string
+  title_ru: string | null
+  title_kz: string | null
+  content_ru: string | null
+  content_kz: string | null
+  image_url: string | null
+  video_id: string | null
+}
+
+export interface LessonQuestion {
+  id: string
+  topic_id: string
+  question_ru: string
+  question_kz: string
+  option_a_ru: string
+  option_b_ru: string
+  option_c_ru: string
+  option_d_ru: string
+  option_a_kz: string
+  option_b_kz: string
+  option_c_kz: string
+  option_d_kz: string
+  correct_option: 'A' | 'B' | 'C' | 'D'
+  order_num: number
+}
