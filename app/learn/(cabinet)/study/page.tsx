@@ -109,7 +109,8 @@ export default async function StudyPage() {
     totalTopics > 0 ? Math.round((completedCount / totalTopics) * 100) : 0
   const percentColor = coursePercent >= 50 ? '#1ec8c8' : '#f47920'
   const courseTitle = course ? (language === 'kz' ? course.title_kz : course.title_ru) : ''
-  const courseIcon = course?.icon ?? '🔢'
+  // TODO: заменить на course.icon когда добавим поле в БД (в мае при доработке кабинета)
+  const courseIcon = '🔢'
 
   return (
     <div className="space-y-5">
