@@ -226,3 +226,41 @@ export interface LessonQuestion {
   correct_option: 'A' | 'B' | 'C' | 'D'
   order_num: number
 }
+
+// ─── Student cabinet: progress / stats / answers ─────────────────────────────
+
+export type ProgressStatus = 'locked' | 'available' | 'in_progress' | 'completed' | 'skipped'
+
+export interface StudentProgress {
+  id: string
+  student_id: string
+  topic_id: string
+  status: ProgressStatus
+  score: number | null
+  style_used: string | null
+  attempts: number
+  completed_at: string | null
+}
+
+export interface StudentStats {
+  student_id: string
+  current_streak: number
+  max_streak: number
+  last_activity_date: string | null
+  streak_grace_days: number
+  total_xp: number
+  level_code: string | null
+  bird_stage_code: string | null
+  bird_mood_code: string | null
+  days_active: number
+}
+
+export interface LessonAnswer {
+  id: string
+  student_id: string
+  question_id: string
+  topic_id: string
+  selected_option: 'A' | 'B' | 'C' | 'D'
+  is_correct: boolean
+  attempt_num: number
+}

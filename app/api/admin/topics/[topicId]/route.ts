@@ -113,8 +113,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { topicId: s
         .eq('topic_id', topicId)
       if (existErr) return NextResponse.json({ error: existErr.message }, { status: 500 })
 
+      const hasValidId = (v: unknown): v is string =>
+        typeof v === 'string' && v.length > 0
+
       const existingIds = (existing ?? []).map(r => r.id as string)
-      const incomingIds = new Set(body.questions.filter(q => q.id).map(q => q.id as string))
+      const incomingIds = new Set(
+        body.questions.filter(q => hasValidId(q.id)).map(q => q.id as string)
+      )
       const toDelete = existingIds.filter(id => !incomingIds.has(id))
 
       if (toDelete.length > 0) {
@@ -122,8 +127,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { topicId: s
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      const upsertPayload = body.questions.map((q, i) => ({
-        ...(q.id ? { id: q.id } : {}),
+      const baseRow = (q: QuestionInput, i: number) => ({
         topic_id: topicId,
         question_ru: q.question_ru,
         question_kz: q.question_kz ?? '',
@@ -137,10 +141,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { topicId: s
         option_d_kz: q.option_d_kz ?? '',
         correct_option: q.correct_option,
         order_num: q.order_num ?? i + 1,
-      }))
+      })
 
-      if (upsertPayload.length > 0) {
-        const { error } = await db.from('lesson_questions').upsert(upsertPayload)
+      // New rows — INSERT without id (Supabase generates UUID via gen_random_uuid())
+      const toInsert = body.questions
+        .map((q, i) => ({ q, i }))
+        .filter(({ q }) => !hasValidId(q.id))
+        .map(({ q, i }) => baseRow(q, i))
+
+      // Existing rows — UPSERT with id (update in place)
+      const toUpsert = body.questions
+        .map((q, i) => ({ q, i }))
+        .filter(({ q }) => hasValidId(q.id))
+        .map(({ q, i }) => ({ id: q.id as string, ...baseRow(q, i) }))
+
+      if (toInsert.length > 0) {
+        const { error } = await db.from('lesson_questions').insert(toInsert)
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      if (toUpsert.length > 0) {
+        const { error } = await db.from('lesson_questions').upsert(toUpsert, { onConflict: 'id' })
         if (error) return NextResponse.json({ error: error.message }, { status: 500 })
       }
     }

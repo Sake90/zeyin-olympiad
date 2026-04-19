@@ -24,6 +24,7 @@ export function BunnyPlayer({ videoId, title }: { videoId: string; title?: strin
         className="absolute inset-0 h-full w-full"
         allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
         allowFullScreen
+        referrerPolicy="no-referrer"
       />
     </div>
   )
