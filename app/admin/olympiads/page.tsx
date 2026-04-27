@@ -24,6 +24,7 @@ interface Olympiad {
   cert_range_pass_min: number
   target_grades: string[]
   subjects: Subject[] | null
+  is_test: boolean
 }
 
 function toLocalString(utcTime: string) {
@@ -49,6 +50,7 @@ type FormData = {
   outro_video_url_ru: string; outro_video_url_kz: string
   cert_range_winner_min: string; cert_range_prize_min: string; cert_range_pass_min: string
   target_grades: string
+  is_test: boolean
 }
 
 const emptyForm: FormData = {
@@ -58,6 +60,7 @@ const emptyForm: FormData = {
   outro_video_url_ru: '', outro_video_url_kz: '',
   cert_range_winner_min: '90', cert_range_prize_min: '75', cert_range_pass_min: '50',
   target_grades: '',
+  is_test: false,
 }
 
 function toFormData(o: Olympiad): FormData {
@@ -77,6 +80,7 @@ function toFormData(o: Olympiad): FormData {
     cert_range_prize_min: String(o.cert_range_prize_min),
     cert_range_pass_min: String(o.cert_range_pass_min),
     target_grades: (o.target_grades ?? []).join(', '),
+    is_test: o.is_test ?? false,
   }
 }
 
@@ -137,6 +141,7 @@ export default function OlympiadsPage() {
         from_q: Number(s.from_q) || 1,
         to_q: Number(s.to_q) || 1,
       })),
+      is_test: f.is_test,
     }
   }
 
@@ -246,6 +251,26 @@ export default function OlympiadsPage() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Test mode */}
+          <div className="mt-3 rounded-xl border border-[#f47920]/30 bg-[#f47920]/5 p-3">
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={form.is_test}
+                onChange={e => setForm(p => ({ ...p, is_test: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 cursor-pointer accent-[#f47920]"
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-[#f47920]">
+                  Тестовая олимпиада (не показывать на публичной части)
+                </span>
+                <span className="mt-0.5 block text-xs text-gray-500">
+                  Регистрация только через прямой логин/пароль. На главной не отображается.
+                </span>
+              </span>
+            </label>
           </div>
 
           {/* Intro video */}
@@ -358,7 +383,14 @@ export default function OlympiadsPage() {
             className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <div className="font-bold text-gray-800">{o.name_ru}</div>
+                <div className="flex items-center gap-2">
+                  <div className="font-bold text-gray-800">{o.name_ru}</div>
+                  {o.is_test && (
+                    <span className="rounded-md bg-[#f47920] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                      Тест
+                    </span>
+                  )}
+                </div>
                 <div className="mt-0.5 text-xs text-gray-400">{o.name_kz}</div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-3 font-mono text-xs text-gray-400">
                   <span>{o.duration_minutes} мин</span>

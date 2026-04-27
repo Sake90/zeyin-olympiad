@@ -70,6 +70,16 @@ export async function POST(req: NextRequest) {
     const password_plain = generatePassword()
     const password_hash = await bcrypt.hash(password_plain, 10)
 
+    let isTest = false
+    if (olympiad_id) {
+      const { data: olympiad } = await db
+        .from('olympiads')
+        .select('is_test')
+        .eq('id', olympiad_id)
+        .single()
+      isTest = olympiad?.is_test ?? false
+    }
+
     const { data, error } = await db
       .from('students')
       .insert({
@@ -83,6 +93,7 @@ export async function POST(req: NextRequest) {
         password_plain,
         olympiad_id: olympiad_id ?? null,
         whatsapp: whatsapp?.replace(/\D/g, '') || null,
+        is_test: isTest,
       })
       .select('id, full_name, login, password_plain, school, grade, language, whatsapp')
       .single()
@@ -145,6 +156,16 @@ export async function PATCH(req: NextRequest) {
     const { data: existing } = await db.from('students').select('login')
     const existingLogins = new Set((existing ?? []).map(s => s.login))
 
+    let isTest = false
+    if (olympiadId) {
+      const { data: olympiad } = await db
+        .from('olympiads')
+        .select('is_test')
+        .eq('id', olympiadId)
+        .single()
+      isTest = olympiad?.is_test ?? false
+    }
+
     const withCreds = attachCredentials(rows)
 
     const toInsert: object[] = []
@@ -161,6 +182,7 @@ export async function PATCH(req: NextRequest) {
         password_hash: await bcrypt.hash(s.password_plain, 10),
         olympiad_id: olympiadId || null,
         whatsapp: s.whatsapp.replace(/\D/g, '') || null,
+        is_test: isTest,
       })
     }
 

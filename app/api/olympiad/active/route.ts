@@ -11,6 +11,7 @@ export async function GET() {
     .from('olympiads')
     .select('name_ru, name_kz')
     .in('status', ['active', 'registration'])
+    .eq('is_test', false)
     .order('created_at', { ascending: false })
     .limit(1)
     .single()

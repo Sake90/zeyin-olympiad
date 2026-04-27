@@ -98,6 +98,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ session: existing, questions: questions ?? [], answers: answers ?? [], language: session.language })
     }
 
+    // Inherit is_test from the student so test sessions stay tagged
+    const { data: student } = await db
+      .from('students')
+      .select('is_test')
+      .eq('id', session.studentId)
+      .single()
+
     // Create new session
     const { data: newSession, error: sErr } = await db
       .from('sessions')
@@ -108,6 +115,7 @@ export async function POST(req: NextRequest) {
         time_remaining_seconds: olympiad.duration_minutes * 60,
         last_question_num: 1,
         is_completed: false,
+        is_test: student?.is_test ?? false,
       })
       .select()
       .single()

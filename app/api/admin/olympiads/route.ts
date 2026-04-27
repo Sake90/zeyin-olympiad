@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       intro_text_ru, intro_text_kz,
       outro_video_url_ru, outro_video_url_kz,
       cert_range_winner_min, cert_range_prize_min, cert_range_pass_min,
-      target_grades,
+      target_grades, is_test,
     } = body
 
     if (!name_ru || !name_kz) {
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
         cert_range_prize_min: cert_range_prize_min ?? 75,
         cert_range_pass_min: cert_range_pass_min ?? 50,
         target_grades: target_grades ?? [],
+        is_test: is_test ?? false,
       })
       .select()
       .single()

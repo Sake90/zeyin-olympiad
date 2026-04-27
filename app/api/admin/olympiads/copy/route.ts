@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
         cert_range_pass_min: src.cert_range_pass_min,
         subjects: src.subjects ?? [],
         target_grades: src.target_grades ?? [],
+        is_test: src.is_test ?? false,
       })
       .select()
       .single()
