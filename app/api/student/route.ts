@@ -92,11 +92,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Find olympiad with status='registration' that includes this grade
+  // Find olympiad with status='registration' that includes this grade.
+  // Test olympiads are excluded from bot auto-registration.
   const { data: olympiads } = await db
     .from('olympiads')
-    .select('id, name_ru, target_grades')
+    .select('id, name_ru, target_grades, is_test')
     .eq('status', 'registration')
+    .eq('is_test', false)
 
   const gradeStr = String(grade).trim()
   const matched = olympiads?.find(
@@ -124,6 +126,7 @@ export async function POST(req: NextRequest) {
       password_plain,
       olympiad_id: matched?.id ?? null,
       whatsapp: phone,
+      is_test: matched?.is_test ?? false,
     })
     .select('id, full_name, login, password_plain, olympiad_id, language')
     .single()

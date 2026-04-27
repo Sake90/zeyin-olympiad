@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
       if (existing) return NextResponse.json(existing)
     }
 
-    // Fetch olympiad, questions, and answers in parallel
-    const [{ data: olympiad }, { data: questions }, { data: answers }] = await Promise.all([
+    // Fetch olympiad, questions, answers, and student.is_test in parallel
+    const [{ data: olympiad }, { data: questions }, { data: answers }, { data: student }] = await Promise.all([
       db.from('olympiads')
         .select('cert_range_winner_min, cert_range_prize_min, cert_range_pass_min, subjects')
         .eq('id', session.olympiadId)
@@ -43,6 +43,10 @@ export async function POST(req: NextRequest) {
       db.from('answers')
         .select('question_id, selected_option')
         .eq('student_id', session.studentId),
+      db.from('students')
+        .select('is_test')
+        .eq('id', session.studentId)
+        .single(),
     ])
 
     if (!olympiad) return NextResponse.json({ error: 'Olympiad not found' }, { status: 404 })
@@ -94,6 +98,7 @@ export async function POST(req: NextRequest) {
           passed_to_round2: passedToRound2,
           completed_at: new Date().toISOString(),
           subject_scores: subjectScores,
+          is_test: student?.is_test ?? false,
         },
         { onConflict: 'student_id,olympiad_id' }
       )

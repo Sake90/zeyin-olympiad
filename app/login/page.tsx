@@ -9,6 +9,7 @@ export default async function LoginPage() {
     .from('olympiads')
     .select('id, name_ru, name_kz')
     .in('status', ['active', 'registration'])
+    .eq('is_test', false)
     .order('created_at', { ascending: false })
 
   const olympiads = data ?? []
