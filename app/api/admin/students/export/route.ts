@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     .from('students')
     .select('full_name, school, grade, district, language, login, password_plain, whatsapp')
     .order('full_name')
+    .range(0, 9999)
 
   if (olympiadId) query = query.eq('olympiad_id', olympiadId)
 
