@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getStudentSessionFromRequest } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
+import { generateSlug } from '@/lib/utils'
 
 // POST — finish quiz, calculate score, save result
 export async function POST(req: NextRequest) {
@@ -28,7 +29,23 @@ export async function POST(req: NextRequest) {
         .eq('student_id', session.studentId)
         .eq('olympiad_id', session.olympiadId)
         .single()
-      if (existing) return NextResponse.json(existing)
+      if (existing) {
+        // Backfill slug for older results that pre-date slug generation.
+        if (!existing.slug) {
+          const { data: studentRow } = await db
+            .from('students')
+            .select('full_name')
+            .eq('id', session.studentId)
+            .single()
+          if (studentRow?.full_name) {
+            const year = new Date(existing.completed_at ?? Date.now()).getFullYear()
+            const slug = generateSlug(studentRow.full_name, year, existing.id)
+            await db.from('results').update({ slug }).eq('id', existing.id)
+            existing.slug = slug
+          }
+        }
+        return NextResponse.json(existing)
+      }
     }
 
     // Fetch olympiad, questions, answers, and student.is_test in parallel
@@ -44,7 +61,7 @@ export async function POST(req: NextRequest) {
         .select('question_id, selected_option')
         .eq('student_id', session.studentId),
       db.from('students')
-        .select('is_test')
+        .select('is_test, full_name')
         .eq('id', session.studentId)
         .single(),
     ])
@@ -108,6 +125,15 @@ export async function POST(req: NextRequest) {
     if (rErr) {
       console.error('Save result error:', rErr)
       return NextResponse.json({ error: rErr.message }, { status: 500 })
+    }
+
+    // Generate stable public slug for the result (e.g. "sabyr-zhumakhanuly-2026-574").
+    // upsert may return an existing row that already has a slug — only set if missing.
+    if (result && !result.slug && student?.full_name) {
+      const slug = generateSlug(student.full_name, new Date().getFullYear(), result.id)
+      const { error: slugErr } = await db.from('results').update({ slug }).eq('id', result.id)
+      if (slugErr) console.error('Slug update error:', slugErr)
+      else result.slug = slug
     }
 
     // Mark session as completed
