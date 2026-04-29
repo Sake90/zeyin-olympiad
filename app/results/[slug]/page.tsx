@@ -3,6 +3,7 @@ import { Unbounded, Geologica } from 'next/font/google'
 import ZeyinLogo from '@/components/ZeyinLogo'
 import { createServiceClient } from '@/lib/supabase'
 import type { BehaviorData } from '@/lib/behavior'
+import AnalysisLoader from './AnalysisLoader'
 
 // Stages 1-2: hero, real percentile, subjects grid, math topic deep-dive.
 // Stages 3-5 (behavior, observations, recommendation) are still placeholders.
@@ -53,6 +54,20 @@ const TONE_SOLID: Record<Tone, string> = {
   teal:    '#1ec8c8',
   orange:  '#f47920',
   magenta: '#d4145a',
+}
+
+// Three observation dots cycle through brand tones as in the prototype.
+const OBS_DOT_COLORS = ['#1ec8c8', '#f47920', '#d4145a']
+
+// Returns the 3 observation strings if analysis is fully shaped, otherwise
+// null — covers in-flight lock state ({generating: true}) and any malformed row.
+function extractObservations(analysis: unknown): [string, string, string] | null {
+  if (!analysis || typeof analysis !== 'object') return null
+  const obj = analysis as Record<string, unknown>
+  const obs = obj.observations
+  if (!Array.isArray(obs) || obs.length !== 3) return null
+  if (!obs.every(o => typeof o === 'string' && o.length > 0)) return null
+  return [obs[0] as string, obs[1] as string, obs[2] as string]
 }
 
 interface BehaviorCardView {
@@ -217,7 +232,7 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
 
   const { data: result } = await db
     .from('results')
-    .select('id, student_id, olympiad_id, score, total_questions, subject_scores, completed_at, slug, is_test, behavior')
+    .select('id, student_id, olympiad_id, score, total_questions, subject_scores, completed_at, slug, is_test, behavior, analysis')
     .eq('slug', slug)
     .single()
 
@@ -360,7 +375,8 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
         strengthSub: 'Осыдан бастаймыз — мұнан өсу оңай болады',
         mathDeepTitle: '🔢 Математика — толық талдау',
         behaviorTitle: 'Олимпиада кезіндегі тәртіп',
-        stage4: 'Бақылаулар 4-кезеңде пайда болады',
+        observationsTitle: 'Бақылаулар',
+        observationsPreparing: 'Талдау дайындалуда...',
         stage5: 'Ұсыныстар 5-кезеңде пайда болады',
         recoTitle: 'Нәтижені қалай жақсартуға болады?',
         ctaText: 'Толық талдау алу',
@@ -383,7 +399,8 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
         strengthSub: 'С этого начинаем — отсюда расти будет легче',
         mathDeepTitle: '🔢 Математика — детальный разбор',
         behaviorTitle: 'Анализ поведения во время олимпиады',
-        stage4: 'Наблюдения появятся в Этапе 4',
+        observationsTitle: 'Наблюдения',
+        observationsPreparing: 'Готовим анализ...',
         stage5: 'Рекомендации появятся в Этапе 5',
         recoTitle: 'Как подтянуть результат?',
         ctaText: 'Получить подробный разбор',
@@ -397,6 +414,7 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
 
   const levelBadgeText = levelBadge(percentile, lang)
   const behaviorView = buildBehaviorView(result.behavior, lang)
+  const observations = extractObservations(result.analysis)
 
   return (
     <div className={`${unbounded.variable} ${geologica.variable} results-root`}>
@@ -622,8 +640,31 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
           <div className="placeholder">{behaviorView.message}</div>
         )}
 
-        {/* STAGE 4-5 PLACEHOLDERS */}
-        <div className="placeholder">{t.stage4}</div>
+        {/* OBSERVATIONS — AI-generated, lazy. While analysis is missing we
+            show a "preparing" plate and the client loader polls the endpoint
+            which kicks off generation on first hit, then router.refresh()'s
+            the page once it's persisted. */}
+        {observations ? (
+          <>
+            <div className="section-title">{t.observationsTitle}</div>
+            <div className="obs-list">
+              {observations.map((text, i) => (
+                <div className="obs-item" key={i}>
+                  <div className="obs-dot" style={{ background: OBS_DOT_COLORS[i] }} />
+                  <div className="obs-text">{text}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="section-title">{t.observationsTitle}</div>
+            <div className="placeholder placeholder-pulse">{t.observationsPreparing}</div>
+            <AnalysisLoader slug={slug} />
+          </>
+        )}
+
+        {/* STAGE 5 PLACEHOLDER */}
 
         <div className="reco-card">
           <div className="reco-title">{t.recoTitle}</div>
@@ -880,6 +921,27 @@ const REPORT_CSS = `
   color: var(--muted); font-size: 13px; text-align: center; font-style: italic;
 }
 
+@keyframes obsPulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+.results-root .placeholder-pulse { animation: obsPulse 1.6s ease-in-out infinite; }
+
+/* ── OBSERVATIONS ───────────────────────────────────────── */
+.results-root .obs-list {
+  margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.results-root .obs-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 18px;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.results-root .obs-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  margin-top: 6px; flex-shrink: 0;
+}
+.results-root .obs-text { font-size: 13px; line-height: 1.6; color: #c5cad8; }
+
 /* ── PERCENTILE MODE B — neutral motivational state ─────── */
 .results-root .percentile-card.mode-b { grid-template-columns: auto 1fr; }
 .results-root .motivational-text {
@@ -1032,6 +1094,7 @@ const REPORT_CSS = `
 .results-root .subjects-grid   { animation: fadeUp 0.5s ease both 0.2s; }
 .results-root .deep-card       { animation: fadeUp 0.5s ease both 0.3s; }
 .results-root .behavior-grid   { animation: fadeUp 0.5s ease both 0.35s; }
+.results-root .obs-list        { animation: fadeUp 0.5s ease both 0.4s; }
 .results-root .placeholder     { animation: fadeUp 0.5s ease both 0.4s; }
 .results-root .reco-card       { animation: fadeUp 0.5s ease both 0.45s; }
 
