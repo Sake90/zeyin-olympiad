@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSessionFromRequest } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { generateAnalysis } from '@/lib/analysis'
-import { buildAnalysisInput, extractBehaviorForPrompt } from '../../results/[slug]/analysis/route'
+import { buildAnalysisInput, extractBehaviorForPrompt } from '@/lib/analysis-helpers'
 
 // POST /api/admin/regenerate-analysis
 // Body: { result_id?: string } | { olympiad_id?: string }

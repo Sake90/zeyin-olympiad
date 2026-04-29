@@ -1,8 +1,11 @@
 import { notFound } from 'next/navigation'
-import { Unbounded, Geologica } from 'next/font/google'
+import { Onest, Geologica } from 'next/font/google'
+import { Target, Clock, Shield, Trophy, BookOpen, Lightbulb, type LucideIcon } from 'lucide-react'
 import ZeyinLogo from '@/components/ZeyinLogo'
 import { createServiceClient } from '@/lib/supabase'
 import type { BehaviorData } from '@/lib/behavior'
+import { buildRecommendations, type Recommendation, type RecommendationIcon } from '@/lib/recommendations'
+import { extractBehaviorForPrompt } from '@/lib/analysis-helpers'
 import AnalysisLoader from './AnalysisLoader'
 
 // Stages 1-2: hero, real percentile, subjects grid, math topic deep-dive.
@@ -20,10 +23,10 @@ const TOPIC_RU: Record<string, string> = {
   'Уақыт және қозғалыс':    'Время и движение',
 }
 
-const unbounded = Unbounded({
+const onest = Onest({
   subsets: ['latin', 'cyrillic'],
-  weight: ['400', '600', '700', '900'],
-  variable: '--font-unbounded',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-onest',
   display: 'swap',
 })
 
@@ -58,6 +61,35 @@ const TONE_SOLID: Record<Tone, string> = {
 
 // Three observation dots cycle through brand tones as in the prototype.
 const OBS_DOT_COLORS = ['#1ec8c8', '#f47920', '#d4145a']
+
+// Recommendation icons rotate through the same brand tones, indexed by position.
+const RECO_TONE_BY_INDEX = ['#1ec8c8', '#f47920', '#d4145a']
+
+const RECO_ICON_COMPONENT: Record<RecommendationIcon, LucideIcon> = {
+  target: Target,
+  clock: Clock,
+  shield: Shield,
+  trophy: Trophy,
+  book: BookOpen,
+  lightbulb: Lightbulb,
+}
+
+// Builds wa.me URL with a pre-filled message ready to send. Number can include
+// '+', spaces, or dashes — wa.me wants digits only, so we strip the rest.
+function buildWhatsAppUrl(
+  rawNumber: string,
+  fullName: string,
+  grade: string,
+  score: number,
+  total: number,
+  lang: 'ru' | 'kz',
+): string {
+  const digits = rawNumber.replace(/\D/g, '')
+  const message = lang === 'kz'
+    ? `Сәлеметсіз бе! Олимпиада нәтижелері туралы толығырақ білгім келеді.\n\nОқушы: ${fullName}\nСынып: ${grade}\nБалл: ${score}/${total}\n\nҚандай курстар немесе бағыттарды ұсынасыздар?`
+    : `Здравствуйте! Хочу узнать подробнее про результаты олимпиады.\n\nУченик: ${fullName}\nКласс: ${grade}\nБалл: ${score}/${total}\n\nКакие курсы или направления порекомендуете?`
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`
+}
 
 // Returns the 3 observation strings if analysis is fully shaped, otherwise
 // null — covers in-flight lock state ({generating: true}) and any malformed row.
@@ -377,10 +409,11 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
         behaviorTitle: 'Олимпиада кезіндегі тәртіп',
         observationsTitle: 'Бақылаулар',
         observationsPreparing: 'Талдау дайындалуда...',
-        stage5: 'Ұсыныстар 5-кезеңде пайда болады',
         recoTitle: 'Нәтижені қалай жақсартуға болады?',
+        recoBottom: 'Дәл қазір бізге жазыңыз. Менеджеріміз сізге жеке кеңес береді.',
         ctaText: 'Толық талдау алу',
         ctaHint: 'WhatsApp-та ашылады',
+        ctaUnavailable: 'Жақында қолжетімді',
         footer: 'Бұл есеп қатысушының жауаптары негізінде автоматты түрде құралған',
       }
     : {
@@ -401,10 +434,11 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
         behaviorTitle: 'Анализ поведения во время олимпиады',
         observationsTitle: 'Наблюдения',
         observationsPreparing: 'Готовим анализ...',
-        stage5: 'Рекомендации появятся в Этапе 5',
         recoTitle: 'Как подтянуть результат?',
+        recoBottom: 'Напишите нам прямо сейчас. Наш менеджер вас лично проконсультирует.',
         ctaText: 'Получить подробный разбор',
         ctaHint: 'Откроется в WhatsApp',
+        ctaUnavailable: 'Скоро доступно',
         footer: 'Этот отчёт сформирован автоматически на основе ответов участника',
       }
 
@@ -416,8 +450,37 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
   const behaviorView = buildBehaviorView(result.behavior, lang)
   const observations = extractObservations(result.analysis)
 
+  // Build recommendations on the server, deterministically. AnalysisInput is
+  // assembled inline from data we already have on the page — no extra DB calls.
+  const accuracy = total > 0 ? Math.round((score / total) * 100) : 0
+  const gradeNum = Number.parseInt(student.grade ?? '', 10)
+  const promptLang: 'ru' | 'kk' = lang === 'kz' ? 'kk' : 'ru'
+  const recommendations: Recommendation[] = buildRecommendations({
+    full_name: student.full_name,
+    grade: Number.isFinite(gradeNum) ? gradeNum : 5,
+    language: promptLang,
+    score,
+    total_questions: total,
+    accuracy_percent: accuracy,
+    subject_scores: subjects.map(s => ({
+      name: lang === 'kz' ? s.name_kz : s.name_ru,
+      score: s.score,
+      total: s.total,
+    })),
+    math_topics: topicPerformance.map(t => ({ name: t.topic, percent: t.pct })),
+    behavior: extractBehaviorForPrompt(result.behavior),
+  })
+
+  // WhatsApp CTA: env-driven, server-rendered link. If no number is configured
+  // (e.g. preview env), button renders as disabled "soon" text rather than
+  // shipping a broken link to production.
+  const whatsappNumber = process.env.ZEYIN_WHATSAPP_NUMBER ?? ''
+  const whatsappUrl = whatsappNumber
+    ? buildWhatsAppUrl(whatsappNumber, student.full_name, student.grade ?? '', score, total, lang)
+    : null
+
   return (
-    <div className={`${unbounded.variable} ${geologica.variable} results-root`}>
+    <div className={`${onest.variable} ${geologica.variable} results-root`}>
       {/* dangerouslySetInnerHTML avoids React's text-content hydration mismatch:
           server escapes apostrophes inside <style>{...}, client doesn't, so the
           rendered HTML diverges. */}
@@ -664,22 +727,52 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
           </>
         )}
 
-        {/* STAGE 5 PLACEHOLDER */}
-
+        {/* RECOMMENDATIONS + WHATSAPP CTA */}
         <div className="reco-card">
           <div className="reco-title">{t.recoTitle}</div>
-          <div className="reco-text" style={{ opacity: 0.7 }}>{t.stage5}</div>
-          <a
-            href="https://wa.me/77001112233"
-            className="cta-btn"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <span className="cta-icon">💬</span>
-            <span>{t.ctaText}</span>
-            <span className="cta-arrow">→</span>
-          </a>
-          <div className="cta-hint">{t.ctaHint}</div>
+          <div className="reco-steps">
+            {recommendations.map((rec, i) => {
+              const Icon = RECO_ICON_COMPONENT[rec.icon]
+              const tone = RECO_TONE_BY_INDEX[i % 3]
+              return (
+                <div className="reco-step" key={i}>
+                  <div
+                    className="rs-icon"
+                    style={{
+                      background: `${tone}1f`,           /* 12% alpha */
+                      borderColor: `${tone}40`,           /* 25% alpha */
+                      color: tone,
+                    }}
+                  >
+                    <Icon size={16} strokeWidth={2.2} />
+                  </div>
+                  <div>
+                    <div className="rs-title">{lang === 'kz' ? rec.title_kk : rec.title_ru}</div>
+                    <div className="rs-desc">{lang === 'kz' ? rec.text_kk : rec.text_ru}</div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="reco-divider" />
+
+          <div className="reco-bottom">
+            <div className="reco-bottom-text">{t.recoBottom}</div>
+            {whatsappUrl ? (
+              <a href={whatsappUrl} className="cta-btn" target="_blank" rel="noopener noreferrer">
+                <span className="cta-icon">💬</span>
+                <span>{t.ctaText}</span>
+                <span className="cta-arrow">→</span>
+              </a>
+            ) : (
+              <button type="button" className="cta-btn cta-btn-disabled" disabled>
+                <span className="cta-icon">💬</span>
+                <span>{t.ctaUnavailable}</span>
+              </button>
+            )}
+            {whatsappUrl && <div className="cta-hint">{t.ctaHint}</div>}
+          </div>
         </div>
 
         <div className="footer">{t.footer}</div>
@@ -746,7 +839,7 @@ const REPORT_CSS = `
 .results-root .hb-icon { font-size: 18px; filter: drop-shadow(0 0 6px rgba(30,200,200,0.35)); position: relative; }
 .results-root .hb-text { display: flex; flex-direction: column; gap: 2px; line-height: 1.15; text-align: right; position: relative; }
 .results-root .hb-title {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--teal);
 }
 .results-root .hb-sub { font-size: 11px; color: var(--muted); }
@@ -759,7 +852,7 @@ const REPORT_CSS = `
   border: 1px solid rgba(244,121,32,0.4);
   border-radius: 99px;
   color: #ffb347;
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 1.2px;
@@ -783,7 +876,7 @@ const REPORT_CSS = `
   text-transform: uppercase; color: var(--teal); margin-bottom: 8px;
 }
 .results-root .hero-name {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 10px;
   line-height: 1.15; word-wrap: break-word;
 }
@@ -807,7 +900,7 @@ const REPORT_CSS = `
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .results-root .score-num {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 30px; font-weight: 900; color: #fff; line-height: 1;
 }
 .results-root .score-total { font-size: 12px; color: var(--muted); margin-top: 2px; }
@@ -824,7 +917,7 @@ const REPORT_CSS = `
   letter-spacing: 1.5px; font-weight: 600; margin-bottom: 4px;
 }
 .results-root .percentile-text .big {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 44px; font-weight: 900;
   background: linear-gradient(135deg, var(--teal), #5eeaea);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
@@ -858,7 +951,7 @@ const REPORT_CSS = `
   position: absolute; top: 0; transform: translateX(-50%);
   background: linear-gradient(135deg, var(--teal), #0fa8a8);
   color: #0a0d14;
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
   padding: 6px 12px; border-radius: 8px; white-space: nowrap;
   box-shadow: 0 4px 14px rgba(30,200,200,0.4); z-index: 3; pointer-events: none;
@@ -897,7 +990,7 @@ const REPORT_CSS = `
 }
 .results-root .subject-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .results-root .subject-score {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 22px; font-weight: 700; color: #fff; margin-top: 6px;
 }
 .results-root .subject-score span { font-size: 12px; font-weight: 400; color: var(--muted); }
@@ -971,12 +1064,12 @@ const REPORT_CSS = `
   position: relative;
 }
 .results-root .strength-name {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 26px; font-weight: 700; color: #fff;
   line-height: 1.2; margin-bottom: 6px; position: relative;
 }
 .results-root .strength-pct {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 18px; font-weight: 700; color: var(--teal);
   margin-bottom: 14px; position: relative;
 }
@@ -993,7 +1086,7 @@ const REPORT_CSS = `
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
 }
 .results-root .deep-title {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 16px; font-weight: 700; color: #fff; line-height: 1.3;
 }
 .results-root .topic-row {
@@ -1028,7 +1121,7 @@ const REPORT_CSS = `
   text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
 }
 .results-root .beh-value {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2;
 }
 .results-root .beh-note {
@@ -1048,17 +1141,44 @@ const REPORT_CSS = `
   pointer-events: none;
 }
 .results-root .reco-title {
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 14px; position: relative;
 }
 .results-root .reco-text {
   font-size: 14px; line-height: 1.7; color: #c5cad8;
   margin-bottom: 20px; max-width: 560px; position: relative;
 }
+.results-root .reco-steps {
+  display: flex; flex-direction: column; gap: 0;
+  margin-bottom: 24px; position: relative;
+}
+.results-root .reco-step {
+  display: flex; gap: 16px; align-items: flex-start;
+  padding: 14px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  position: relative;
+}
+.results-root .reco-step:last-child { border-bottom: none; }
+.results-root .rs-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  border: 1px solid; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 2px;
+}
+.results-root .rs-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+.results-root .rs-desc  { font-size: 13px; line-height: 1.55; color: var(--muted); }
+.results-root .reco-divider {
+  height: 1px; margin-bottom: 22px;
+  background: linear-gradient(90deg,
+    transparent 0%, rgba(30,200,200,0.2) 40%,
+    rgba(212,20,90,0.15) 70%, transparent 100%);
+}
+.results-root .reco-bottom { position: relative; }
+.results-root .reco-bottom-text {
+  font-size: 14px; line-height: 1.65; color: #c5cad8; margin-bottom: 18px;
+}
 .results-root .cta-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   background: linear-gradient(135deg, var(--teal), #0fa8a8); color: #0a0d14;
-  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-family: var(--font-onest), 'Onest', sans-serif;
   font-size: 13px; font-weight: 700; padding: 14px 22px;
   border-radius: 99px; cursor: pointer; border: none;
   box-shadow: 0 0 24px rgba(30,200,200,0.3); letter-spacing: 0.3px;
@@ -1067,6 +1187,11 @@ const REPORT_CSS = `
 }
 .results-root .cta-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 28px rgba(30,200,200,0.4); }
 .results-root .cta-btn:active { transform: translateY(0); }
+.results-root .cta-btn-disabled,
+.results-root .cta-btn-disabled:hover {
+  background: rgba(255,255,255,0.06); color: var(--muted);
+  box-shadow: none; cursor: not-allowed; transform: none;
+}
 .results-root .cta-icon { font-size: 16px; line-height: 1; }
 .results-root .cta-arrow { font-weight: 700; transition: transform 0.2s; }
 .results-root .cta-btn:hover .cta-arrow { transform: translateX(3px); }
