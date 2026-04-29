@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getStudentSessionFromRequest } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { generateSlug } from '@/lib/utils'
+import { calculateBehavior } from '@/lib/behavior'
 
 // POST — finish quiz, calculate score, save result
 export async function POST(req: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     // Verify active session
     const { data: quizSession } = await db
       .from('sessions')
-      .select('id, is_completed, olympiad_id')
+      .select('id, is_completed, olympiad_id, started_at')
       .eq('student_id', session.studentId)
       .eq('olympiad_id', session.olympiadId)
       .single()
@@ -102,6 +103,8 @@ export async function POST(req: NextRequest) {
       passedToRound2 = true
     }
 
+    const completedAt = new Date().toISOString()
+
     // Save result
     const { data: result, error: rErr } = await db
       .from('results')
@@ -113,7 +116,7 @@ export async function POST(req: NextRequest) {
           total_questions: total,
           cert_type: certType,
           passed_to_round2: passedToRound2,
-          completed_at: new Date().toISOString(),
+          completed_at: completedAt,
           subject_scores: subjectScores,
           is_test: student?.is_test ?? false,
         },
@@ -134,6 +137,27 @@ export async function POST(req: NextRequest) {
       const { error: slugErr } = await db.from('results').update({ slug }).eq('id', result.id)
       if (slugErr) console.error('Slug update error:', slugErr)
       else result.slug = slug
+    }
+
+    // Behavior is best-effort and post-hoc: a child must always get their score
+    // and certificate even if behavior calc throws. On failure we mark the row
+    // so the UI can render "—" without trying again on every page load.
+    if (result && quizSession.started_at) {
+      try {
+        const behavior = await calculateBehavior(
+          session.studentId,
+          result.id,
+          quizSession.started_at,
+          completedAt,
+          score,
+          total,
+        )
+        await db.from('results').update({ behavior }).eq('id', result.id)
+        ;(result as { behavior?: unknown }).behavior = behavior
+      } catch (e) {
+        console.error('[behavior] calc failed:', e)
+        await db.from('results').update({ behavior: { error: 'calc_failed' } }).eq('id', result.id)
+      }
     }
 
     // Mark session as completed

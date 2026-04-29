@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { Unbounded, Geologica } from 'next/font/google'
 import ZeyinLogo from '@/components/ZeyinLogo'
 import { createServiceClient } from '@/lib/supabase'
+import type { BehaviorData } from '@/lib/behavior'
 
 // Stages 1-2: hero, real percentile, subjects grid, math topic deep-dive.
 // Stages 3-5 (behavior, observations, recommendation) are still placeholders.
@@ -54,6 +55,119 @@ const TONE_SOLID: Record<Tone, string> = {
   magenta: '#d4145a',
 }
 
+interface BehaviorCardView {
+  icon: string
+  label: string   // small uppercase header (Средняя скорость / Уверенность / Паттерн ошибок)
+  value: string   // big white headline (Очень быстро / Высокая / etc) — "—" when missing
+  note: string    // small muted subtitle below the value
+}
+
+// Three render modes:
+//   - 'cards'        — full data, three behavior cards
+//   - 'insufficient' — child answered < 15 questions (abandoned attempt)
+//   - 'failed'       — calculator threw; behavior column flagged calc_failed
+type BehaviorRender =
+  | { mode: 'cards'; speed: BehaviorCardView; confidence: BehaviorCardView; pattern: BehaviorCardView }
+  | { mode: 'insufficient'; message: string }
+  | { mode: 'failed'; message: string }
+
+// Treat anything that isn't a fully-shaped BehaviorData as missing — covers
+// null, undefined, the { error: 'calc_failed' } marker, and rows from before
+// the behavior block existed.
+function isBehaviorReady(b: unknown): b is BehaviorData {
+  if (!b || typeof b !== 'object') return false
+  const any = b as Record<string, unknown>
+  return (
+    typeof any.avg_seconds_per_question === 'number' &&
+    typeof any.speed_label === 'string' &&
+    typeof any.confidence_label === 'string' &&
+    typeof any.error_pattern === 'string'
+  )
+}
+
+function buildBehaviorView(b: unknown, lang: 'ru' | 'kz'): BehaviorRender {
+  const headers = lang === 'kz'
+    ? { speed: 'Орташа жылдамдық', confidence: 'Сенімділік', pattern: 'Қателер үлгісі' }
+    : { speed: 'Средняя скорость', confidence: 'Уверенность', pattern: 'Паттерн ошибок' }
+
+  // Abandoned attempt: fewer than MIN_ANSWERS in the helper.
+  if (b && typeof b === 'object' && (b as Record<string, unknown>).insufficient_data === true) {
+    return {
+      mode: 'insufficient',
+      message: lang === 'kz'
+        ? 'Талдау үшін деректер жеткіліксіз'
+        : 'Недостаточно данных для анализа поведения',
+    }
+  }
+
+  // Calculator threw — surfaced as { error: 'calc_failed' } from the API.
+  if (b && typeof b === 'object' && (b as Record<string, unknown>).error === 'calc_failed') {
+    return {
+      mode: 'failed',
+      message: lang === 'kz'
+        ? 'Талдау сәтсіз болды'
+        : 'Не удалось проанализировать',
+    }
+  }
+
+  const empty = (label: string, icon: string): BehaviorCardView => ({ icon, label, value: '—', note: '' })
+
+  // Anything else missing/malformed — show empty cards so layout doesn't shift.
+  if (!isBehaviorReady(b)) {
+    return {
+      mode: 'cards',
+      speed:      empty(headers.speed,      '⚡'),
+      confidence: empty(headers.confidence, '🎯'),
+      pattern:    empty(headers.pattern,    '📊'),
+    }
+  }
+
+  const avg = b.avg_seconds_per_question
+
+  // SPEED
+  let speedValue: string, speedNote: string
+  if (lang === 'kz') {
+    if (b.speed_label === 'fast')      { speedValue = 'Өте жылдам'; speedNote = `${avg} сек/сұрақ — мұқият бол` }
+    else if (b.speed_label === 'slow') { speedValue = 'Ойланып';    speedNote = `${avg} сек/сұрақ — жақсы ойланасың` }
+    else                                { speedValue = 'Өз темпінде'; speedNote = `${avg} сек/сұрақ` }
+  } else {
+    if (b.speed_label === 'fast')      { speedValue = 'Очень быстро'; speedNote = `${avg} сек/вопрос — будь внимательнее` }
+    else if (b.speed_label === 'slow') { speedValue = 'Вдумчиво';     speedNote = `${avg} сек/вопрос — отлично думаешь` }
+    else                                { speedValue = 'В своём темпе'; speedNote = `${avg} сек/вопрос` }
+  }
+
+  // CONFIDENCE
+  let confValue: string, confNote: string
+  if (lang === 'kz') {
+    if (b.confidence_label === 'high')     { confValue = 'Жоғары';        confNote = 'Тұрақты ырғақпен жауап бердің' }
+    else if (b.confidence_label === 'low') { confValue = 'Әртүрлі ырғақ'; confNote = 'Кейбір сұрақтарға тым жылдам жауап бердің' }
+    else                                    { confValue = 'Орташа';        confNote = 'Кейде жылдам, кейде ойландың' }
+  } else {
+    if (b.confidence_label === 'high')     { confValue = 'Высокая';     confNote = 'Стабильный темп ответов' }
+    else if (b.confidence_label === 'low') { confValue = 'Разный ритм'; confNote = 'На какие-то вопросы отвечал быстро, на какие-то дольше' }
+    else                                    { confValue = 'Средняя';     confNote = 'Где-то быстро, где-то задумывался' }
+  }
+
+  // PATTERN
+  let patValue: string, patNote: string
+  if (lang === 'kz') {
+    if (b.error_pattern === 'weak_start')    { patValue = 'Басында қиын болды'; patNote = 'Соңында жақсы болды' }
+    else if (b.error_pattern === 'weak_end') { patValue = 'Соңында шаршадың';  patNote = 'Жақсы бастадың, күшіңді сақта' }
+    else                                      { patValue = 'Тұрақты';            patNote = 'Басынан соңына дейін бірдей' }
+  } else {
+    if (b.error_pattern === 'weak_start')    { patValue = 'Сложности в начале'; patNote = 'К концу освоился' }
+    else if (b.error_pattern === 'weak_end') { patValue = 'Усталость к концу';  patNote = 'Хорошее начало, береги силы' }
+    else                                      { patValue = 'Стабильно';          patNote = 'Одинаково от начала до конца' }
+  }
+
+  return {
+    mode: 'cards',
+    speed:      { icon: '⚡', label: headers.speed,      value: speedValue, note: speedNote },
+    confidence: { icon: '🎯', label: headers.confidence, value: confValue,  note: confNote  },
+    pattern:    { icon: '📊', label: headers.pattern,    value: patValue,   note: patNote   },
+  }
+}
+
 const TONE_STATUS_CLASS: Record<Tone, string> = {
   teal: 'tag-good', orange: 'tag-ok', magenta: 'tag-weak',
 }
@@ -103,7 +217,7 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
 
   const { data: result } = await db
     .from('results')
-    .select('id, student_id, olympiad_id, score, total_questions, subject_scores, completed_at, slug, is_test')
+    .select('id, student_id, olympiad_id, score, total_questions, subject_scores, completed_at, slug, is_test, behavior')
     .eq('slug', slug)
     .single()
 
@@ -245,7 +359,7 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
         strengthTitleSubject: '🌟 Күшті пәні',
         strengthSub: 'Осыдан бастаймыз — мұнан өсу оңай болады',
         mathDeepTitle: '🔢 Математика — толық талдау',
-        stage3: 'Тәртіп талдауы 3-кезеңде пайда болады',
+        behaviorTitle: 'Олимпиада кезіндегі тәртіп',
         stage4: 'Бақылаулар 4-кезеңде пайда болады',
         stage5: 'Ұсыныстар 5-кезеңде пайда болады',
         recoTitle: 'Нәтижені қалай жақсартуға болады?',
@@ -268,7 +382,7 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
         strengthTitleSubject: '🌟 Сильный предмет',
         strengthSub: 'С этого начинаем — отсюда расти будет легче',
         mathDeepTitle: '🔢 Математика — детальный разбор',
-        stage3: 'Анализ поведения появится в Этапе 3',
+        behaviorTitle: 'Анализ поведения во время олимпиады',
         stage4: 'Наблюдения появятся в Этапе 4',
         stage5: 'Рекомендации появятся в Этапе 5',
         recoTitle: 'Как подтянуть результат?',
@@ -282,6 +396,7 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
   const ringOffset = RING_LEN * (1 - pct / 100)
 
   const levelBadgeText = levelBadge(percentile, lang)
+  const behaviorView = buildBehaviorView(result.behavior, lang)
 
   return (
     <div className={`${unbounded.variable} ${geologica.variable} results-root`}>
@@ -489,8 +604,25 @@ export default async function ResultsBySlugPage({ params }: { params: { slug: st
           </div>
         )}
 
-        {/* STAGE 3-5 PLACEHOLDERS */}
-        <div className="placeholder">{t.stage3}</div>
+        {/* BEHAVIOR — three cards, neutral plate for abandoned attempts,
+            or error plate if the calculator threw. */}
+        <div className="section-title">{t.behaviorTitle}</div>
+        {behaviorView.mode === 'cards' ? (
+          <div className="behavior-grid">
+            {([behaviorView.speed, behaviorView.confidence, behaviorView.pattern]).map((c, i) => (
+              <div className="beh-card" key={i}>
+                <div className="beh-icon">{c.icon}</div>
+                <div className="beh-label">{c.label}</div>
+                <div className="beh-value">{c.value}</div>
+                {c.note && <div className="beh-note">{c.note}</div>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="placeholder">{behaviorView.message}</div>
+        )}
+
+        {/* STAGE 4-5 PLACEHOLDERS */}
         <div className="placeholder">{t.stage4}</div>
 
         <div className="reco-card">
@@ -819,6 +951,29 @@ const REPORT_CSS = `
   font-size: 13px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums;
 }
 
+/* ── BEHAVIOR ───────────────────────────────────────────── */
+.results-root .behavior-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+.results-root .beh-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 14px; text-align: center;
+}
+.results-root .beh-icon { font-size: 22px; margin-bottom: 8px; }
+.results-root .beh-label {
+  font-size: 10px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+}
+.results-root .beh-value {
+  font-family: var(--font-unbounded), 'Unbounded', sans-serif;
+  font-size: 16px; font-weight: 700; color: #fff; line-height: 1.2;
+}
+.results-root .beh-note {
+  font-size: 10px; color: var(--muted);
+  margin-top: 4px; line-height: 1.3;
+}
+
 .results-root .reco-card {
   background: linear-gradient(135deg, rgba(30,200,200,0.08), rgba(212,20,90,0.05));
   border: 1px solid rgba(30,200,200,0.2); border-radius: 20px;
@@ -876,7 +1031,8 @@ const REPORT_CSS = `
 .results-root .strength-card   { animation: fadeUp 0.5s ease both 0.1s; }
 .results-root .subjects-grid   { animation: fadeUp 0.5s ease both 0.2s; }
 .results-root .deep-card       { animation: fadeUp 0.5s ease both 0.3s; }
-.results-root .placeholder     { animation: fadeUp 0.5s ease both 0.35s; }
+.results-root .behavior-grid   { animation: fadeUp 0.5s ease both 0.35s; }
+.results-root .placeholder     { animation: fadeUp 0.5s ease both 0.4s; }
 .results-root .reco-card       { animation: fadeUp 0.5s ease both 0.45s; }
 
 @media (max-width: 640px) {
@@ -917,6 +1073,13 @@ const REPORT_CSS = `
   .results-root .topic-name { font-size: 13px; }
   .results-root .topic-bar-wrap { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
 
+  .results-root .behavior-grid { gap: 8px; }
+  .results-root .beh-card { padding: 14px 8px; }
+  .results-root .beh-icon { font-size: 20px; margin-bottom: 6px; }
+  .results-root .beh-label { font-size: 9px; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .results-root .beh-value { font-size: 14px; }
+  .results-root .beh-note { font-size: 9px; }
+
   .results-root .reco-card { padding: 24px 22px; }
   .results-root .reco-title { font-size: 17px; }
   .results-root .reco-text { font-size: 13px; line-height: 1.7; }
@@ -935,6 +1098,15 @@ const REPORT_CSS = `
   .results-root .percentile-text .big { font-size: 28px; }
   .results-root .subjects-grid { grid-template-columns: 1fr; }
   .results-root .subject-card { padding: 16px; }
+  .results-root .behavior-grid { grid-template-columns: 1fr; gap: 8px; }
+  .results-root .beh-card {
+    display: grid; grid-template-columns: auto 1fr auto;
+    align-items: center; text-align: left; gap: 14px; padding: 14px 16px;
+  }
+  .results-root .beh-icon { margin-bottom: 0; font-size: 22px; }
+  .results-root .beh-label { margin-bottom: 2px; font-size: 10px; }
+  .results-root .beh-value { font-size: 15px; text-align: right; }
+  .results-root .beh-note { grid-column: 2 / -1; text-align: left; margin-top: 0; font-size: 10px; }
   .results-root .reco-card { padding: 22px 18px; }
   .results-root .reco-title { font-size: 16px; }
 }
