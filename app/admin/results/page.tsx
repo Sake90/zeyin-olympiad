@@ -8,7 +8,16 @@ interface ResultRow {
   id: string; student_id: string; score: number; total_questions: number
   cert_type: string; passed_to_round2: boolean; completed_at: string
   subject_scores: SubjectScore[] | null
+  analysis: unknown | null
   students: { full_name: string; school: string | null; grade: string | null; district: string | null; language: string } | null
+}
+
+// True when the result has a fully-shaped analysis (3 observations + source).
+// In-flight {generating: true} or partial rows count as "no analysis yet".
+function hasFullAnalysis(a: unknown): boolean {
+  if (!a || typeof a !== 'object') return false
+  const obj = a as Record<string, unknown>
+  return Array.isArray(obj.observations) && obj.observations.length === 3
 }
 interface Subject { name_ru: string; name_kz: string; from_q: number; to_q: number }
 interface Olympiad { id: string; name_ru: string }
@@ -58,8 +67,11 @@ export default function ResultsPage() {
   const [filterLang, setFilterLang] = useState('')
   const [search, setSearch] = useState('')
   const [profileId, setProfileId] = useState<string | null>(null)
+  const [profileResultId, setProfileResultId] = useState<string | null>(null)
+  const [profileHasAnalysis, setProfileHasAnalysis] = useState(false)
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [profileLoading, setProfileLoading] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/olympiads').then(r => r.json()).then(data => {
@@ -81,13 +93,44 @@ export default function ResultsPage() {
     })
   }, [selectedOlympiad])
 
-  async function openProfile(studentId: string) {
-    setProfileId(studentId)
+  async function openProfile(row: ResultRow) {
+    setProfileId(row.student_id)
+    setProfileResultId(row.id)
+    setProfileHasAnalysis(hasFullAnalysis(row.analysis))
     setProfileData(null)
     setProfileLoading(true)
-    const data = await fetch(`/api/admin/analytics/student?student_id=${studentId}&olympiad_id=${selectedOlympiad}`).then(r => r.json())
+    const data = await fetch(`/api/admin/analytics/student?student_id=${row.student_id}&olympiad_id=${selectedOlympiad}`).then(r => r.json())
     setProfileData(data)
     setProfileLoading(false)
+  }
+
+  async function regenerateAnalysis() {
+    if (!profileResultId) return
+    const confirmText = profileHasAnalysis
+      ? 'Перегенерировать наблюдения для этого ученика? Это вызовет новый запрос к Claude API (~$0.004).'
+      : 'Сгенерировать наблюдения для этого ученика? Это вызовет запрос к Claude API (~$0.004).'
+    if (!window.confirm(confirmText)) return
+    setRegenerating(true)
+    try {
+      const r = await fetch('/api/admin/regenerate-analysis', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ result_id: profileResultId }),
+      })
+      const body = await r.json()
+      if (!r.ok || !body.ok) {
+        const reason = body?.errors?.[0]?.reason ?? body?.error ?? 'Unknown error'
+        window.alert(`Ошибка: ${reason}`)
+        return
+      }
+      window.alert('Анализ обновлён')
+      window.location.reload()
+    } catch (e) {
+      window.alert(`Ошибка сети: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setRegenerating(false)
+    }
   }
 
   // ── Sorting ────────────────────────────────────────────────────────────────
@@ -245,7 +288,7 @@ export default function ResultsPage() {
                   const subMap = new Map((r.subject_scores ?? []).map(s => [s.name_ru, s]))
                   return (
                     <tr key={r.id}
-                      onClick={() => openProfile(r.student_id)}
+                      onClick={() => openProfile(r)}
                       className="cursor-pointer border-b border-gray-50 hover:bg-[#f0fdfa]">
                       <td className="px-4 py-3 font-mono text-xs text-gray-400">{i + 1}</td>
                       <td className="px-4 py-3">
@@ -429,7 +472,23 @@ export default function ResultsPage() {
                   {profileData?.student?.grade} · {profileData?.student?.district} · {profileData?.student?.school}
                 </div>
               </div>
-              <button onClick={() => setProfileId(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+              <div className="flex items-center gap-2">
+                {profileResultId && (
+                  <button
+                    type="button"
+                    onClick={regenerateAnalysis}
+                    disabled={regenerating}
+                    className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:border-[#1ec8c8] hover:text-[#1ec8c8] disabled:cursor-not-allowed disabled:opacity-60"
+                    title="Запрос к Claude API ~$0.004">
+                    {regenerating
+                      ? 'Генерирую...'
+                      : profileHasAnalysis
+                        ? '🔄 Перегенерить наблюдения'
+                        : '✨ Сгенерировать анализ'}
+                  </button>
+                )}
+                <button onClick={() => setProfileId(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+              </div>
             </div>
 
             {profileLoading && <div className="py-12 text-center text-gray-400">Загрузка...</div>}
