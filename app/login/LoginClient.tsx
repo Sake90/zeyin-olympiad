@@ -13,28 +13,20 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
   )
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
-  const [language, setLanguage] = useState<'ru' | 'kz'>('kz')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Дефолт страницы входа — казахский. Реальный язык теста берётся
+  // из записи ученика в БД после успешного входа.
   const t = {
-    ru: {
-      title: 'Вход в олимпиаду',
-      loginPlaceholder: 'Логин',
-      passwordPlaceholder: 'Пароль',
-      submit: 'Войти',
-      loading: 'Вход...',
-      pick: 'Выберите олимпиаду',
-    },
-    kz: {
-      title: 'Олимпиадаға кіру',
-      loginPlaceholder: 'Логин',
-      passwordPlaceholder: 'Құпия сөз',
-      submit: 'Кіру',
-      loading: 'Жүктелуде...',
-      pick: 'Олимпиаданы таңдаңыз',
-    },
-  }[language]
+    title: 'Олимпиадаға кіру',
+    loginPlaceholder: 'Логин',
+    passwordPlaceholder: 'Құпия сөз',
+    submit: 'Кіру',
+    loading: 'Жүктелуде...',
+    pick: 'Олимпиаданы таңдаңыз',
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,26 +51,6 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
     }
   }
 
-  // ── Язык-переключатель (показывается всегда) ───────────────────
-  const langToggle = (
-    <div className="mb-6 flex overflow-hidden rounded-xl border border-zeyin-border">
-      {(['kz', 'ru'] as const).map(lang => (
-        <button
-          key={lang}
-          onClick={() => setLanguage(lang)}
-          className="flex-1 py-3 text-sm font-bold transition-all"
-          style={{
-            background: language === lang
-              ? 'linear-gradient(135deg, #0fa8a8, #1ec8c8)'
-              : '#0c1a19',
-            color: language === lang ? '#06100f' : '#4a7070',
-          }}>
-          {lang === 'ru' ? 'Русская группа' : 'Қазақ тобы'}
-        </button>
-      ))}
-    </div>
-  )
-
   // ── Выбор олимпиады (если их несколько и ещё не выбрана) ───────
   if (!selected) {
     return (
@@ -88,8 +60,6 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
           <OlympiadHeader banner="/banner-login.jpg" />
 
           <div className="flex flex-1 flex-col px-5 pb-8 pt-4">
-            {langToggle}
-
             <h1 className="mb-5 text-center text-lg font-black text-[#b2e8e8]">
               {t.pick}
             </h1>
@@ -100,7 +70,7 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
                   key={o.id}
                   onClick={() => setSelected(o)}
                   className="rounded-2xl border border-zeyin-border bg-zeyin-card px-5 py-4 text-left text-base font-bold text-[#b2e8e8] transition-all hover:border-zeyin-teal">
-                  {language === 'kz' ? o.name_kz : o.name_ru}
+                  {o.name_kz}
                 </button>
               ))}
             </div>
@@ -124,13 +94,10 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
         <OlympiadHeader
           typewriter
           banner="/banner-login.jpg"
-          title={language === 'kz' ? selected.name_kz : selected.name_ru}
+          title={selected.name_kz}
         />
 
         <div className="flex flex-1 flex-col px-5 pb-8 pt-4">
-          {langToggle}
-
-          {/* Кнопка «назад» если олимпиад несколько */}
           {olympiads.length > 1 && (
             <button
               onClick={() => setSelected(null)}
@@ -155,14 +122,25 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
               required
               className="rounded-2xl border border-zeyin-border bg-zeyin-card px-4 py-4 text-base text-[#b2e8e8] placeholder-[#1a3030] outline-none transition-all focus:border-zeyin-teal"
             />
-            <input
-              type="password"
-              placeholder={t.passwordPlaceholder}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              className="rounded-2xl border border-zeyin-border bg-zeyin-card px-4 py-4 text-base text-[#b2e8e8] placeholder-[#1a3030] outline-none transition-all focus:border-zeyin-teal"
-            />
+
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder={t.passwordPlaceholder}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                className="w-full rounded-2xl border border-zeyin-border bg-zeyin-card px-4 py-4 pr-14 text-base text-[#b2e8e8] placeholder-[#1a3030] outline-none transition-all focus:border-zeyin-teal"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(s => !s)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-lg transition-colors"
+                style={{ color: showPassword ? '#1ec8c8' : '#4a7070' }}>
+                {showPassword ? '🙈' : '👁'}
+              </button>
+            </div>
 
             {error && (
               <div className="rounded-xl border border-red-900/40 bg-red-950/20 px-4 py-3 text-sm text-red-400">
