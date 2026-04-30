@@ -17,15 +17,15 @@ export default function LoginClient({ olympiads }: { olympiads: Olympiad[] }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Дефолт страницы входа — казахский. Реальный язык теста берётся
-  // из записи ученика в БД после успешного входа.
+  // Двуязычные подписи: kz / ru вместе на странице входа.
+  // Реальный язык теста ученика берётся из БД после входа.
   const t = {
-    title: 'Олимпиадаға кіру',
+    title: 'Олимпиадаға кіру / Вход на олимпиаду',
     loginPlaceholder: 'Логин',
-    passwordPlaceholder: 'Құпия сөз',
-    submit: 'Кіру',
-    loading: 'Жүктелуде...',
-    pick: 'Олимпиаданы таңдаңыз',
+    passwordPlaceholder: 'Құпия сөз / Пароль',
+    submit: 'Кіру / Войти',
+    loading: 'Жүктелуде... / Вход...',
+    pick: 'Олимпиаданы таңдаңыз / Выберите олимпиаду',
   }
 
   async function handleSubmit(e: React.FormEvent) {
