@@ -5,13 +5,29 @@ import { usePathname, useRouter } from 'next/navigation'
 import ZeyinLogo from '@/components/ZeyinLogo'
 import { ToastProvider } from '@/components/admin/Toast'
 
-const NAV = [
+type NavItem = { href: string; label: string; icon: string }
+type NavGroup = { label: string; icon: string; basePath: string; children: NavItem[] }
+type NavEntry = NavItem | NavGroup
+
+function isGroup(e: NavEntry): e is NavGroup {
+  return 'children' in e
+}
+
+const NAV: NavEntry[] = [
   { href: '/admin', label: 'Дашборд', icon: '◈' },
   { href: '/admin/olympiads', label: 'Олимпиады', icon: '🏆' },
   { href: '/admin/students', label: 'Ученики', icon: '👤' },
   { href: '/admin/questions', label: 'Вопросы', icon: '?' },
   { href: '/admin/results', label: 'Результаты', icon: '📊' },
   { href: '/admin/courses', label: 'Курсы', icon: '📚' },
+  {
+    label: 'Тренажер', icon: '🎯', basePath: '/admin/trainer',
+    children: [
+      { href: '/admin/trainer/students', label: 'Ученики', icon: '·' },
+      { href: '/admin/trainer/tests',    label: 'Тесты',   icon: '·' },
+      { href: '/admin/trainer/settings', label: 'Настройки', icon: '·' },
+    ],
+  },
   { href: '/admin/settings', label: 'Настройки', icon: '⚙️' },
 ]
 
@@ -45,9 +61,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Nav */}
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {NAV.map(item => {
+          {NAV.map(entry => {
+            if (isGroup(entry)) {
+              const groupActive = pathname.startsWith(entry.basePath)
+              return (
+                <div key={entry.label} className="flex flex-col gap-1">
+                  <div
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium"
+                    style={{
+                      background: groupActive ? 'rgba(30,200,200,0.06)' : 'transparent',
+                      color: groupActive ? '#1ec8c8' : '#6b7280',
+                    }}
+                  >
+                    <span className="text-base">{entry.icon}</span>
+                    {entry.label}
+                  </div>
+                  <div className="ml-4 flex flex-col gap-1 border-l border-gray-100 pl-2">
+                    {entry.children.map(child => {
+                      const active = pathname === child.href ||
+                        pathname.startsWith(child.href + '/')
+                      return (
+                        <Link key={child.href} href={child.href}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: active ? 'rgba(30,200,200,0.1)' : 'transparent',
+                            color: active ? '#1ec8c8' : '#6b7280',
+                          }}>
+                          <span className="text-gray-300">{child.icon}</span>
+                          {child.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            }
+
+            const item = entry
             const active = pathname === item.href ||
-              (item.href !== '/admin' && pathname.startsWith(item.href))
+              (item.href !== '/admin' && pathname.startsWith(item.href + '/'))
             return (
               <Link key={item.href} href={item.href}
                 className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all"

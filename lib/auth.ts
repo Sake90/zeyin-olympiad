@@ -8,6 +8,9 @@ const JWT_SECRET = new TextEncoder().encode(
 
 const STUDENT_COOKIE = 'zeyin_student'
 const ADMIN_COOKIE = 'zeyin_admin'
+const TRAINER_COOKIE = 'trainer_session'
+
+const TRAINER_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
 
 // ─── Student JWT ──────────────────────────────────────────────────────────────
 
@@ -91,4 +94,49 @@ export function setAdminCookieHeader(token: string) {
 
 export function clearAdminCookieHeader() {
   return `${ADMIN_COOKIE}=; HttpOnly; Path=/; Max-Age=0`
+}
+
+// ─── Trainer JWT (6th-grade trainer, isolated from olympiad students) ─────────
+
+export interface TrainerPayload {
+  studentId: string
+  fullName: string
+  classLabel: string
+}
+
+export async function signTrainerToken(payload: TrainerPayload): Promise<string> {
+  return new SignJWT({ ...payload })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setExpirationTime('30d')
+    .sign(JWT_SECRET)
+}
+
+export async function verifyTrainerToken(token: string): Promise<TrainerPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    return payload as unknown as TrainerPayload
+  } catch {
+    return null
+  }
+}
+
+export async function getTrainerSession(): Promise<TrainerPayload | null> {
+  const cookieStore = cookies()
+  const token = cookieStore.get(TRAINER_COOKIE)?.value
+  if (!token) return null
+  return verifyTrainerToken(token)
+}
+
+export function getTrainerSessionFromRequest(req: NextRequest): Promise<TrainerPayload | null> {
+  const token = req.cookies.get(TRAINER_COOKIE)?.value
+  if (!token) return Promise.resolve(null)
+  return verifyTrainerToken(token)
+}
+
+export function setTrainerCookieHeader(token: string) {
+  return `${TRAINER_COOKIE}=${token}; HttpOnly; Path=/; Max-Age=${TRAINER_TTL_SECONDS}; SameSite=Lax`
+}
+
+export function clearTrainerCookieHeader() {
+  return `${TRAINER_COOKIE}=; HttpOnly; Path=/; Max-Age=0`
 }
