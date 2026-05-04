@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/questions', label: 'Вопросы', icon: '?' },
   { href: '/admin/results', label: 'Результаты', icon: '📊' },
   { href: '/admin/courses', label: 'Курсы', icon: '📚' },
+  { href: '/admin/trainer/students', label: 'Тренажер', icon: '🎯' },
   { href: '/admin/settings', label: 'Настройки', icon: '⚙️' },
 ]
 

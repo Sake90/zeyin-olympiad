@@ -11,6 +11,8 @@ const STUDENT_ROUTES = ['/intro', '/quiz', '/result', '/certificate']
 const ADMIN_ROUTES = ['/admin']
 // Admin login page — skip auth check
 const ADMIN_LOGIN = '/admin/login'
+// Trainer login page — skip auth check
+const TRAINER_LOGIN = '/trainer/login'
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -26,6 +28,21 @@ export async function middleware(req: NextRequest) {
       if (payload.role !== 'admin') throw new Error('Not admin')
     } catch {
       return NextResponse.redirect(new URL('/admin/login', req.url))
+    }
+    return NextResponse.next()
+  }
+
+  // ── Trainer routes (6th-grade trainer, isolated from olympiad) ────
+  // Only /trainer/* — does NOT touch /olympiad, /intro, /quiz, /result, etc.
+  if (pathname.startsWith('/trainer') && pathname !== TRAINER_LOGIN) {
+    const token = req.cookies.get('trainer_session')?.value
+    if (!token) {
+      return NextResponse.redirect(new URL('/trainer/login', req.url))
+    }
+    try {
+      await jwtVerify(token, JWT_SECRET)
+    } catch {
+      return NextResponse.redirect(new URL('/trainer/login', req.url))
     }
     return NextResponse.next()
   }
@@ -50,6 +67,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     '/admin/:path*',
+    '/trainer/:path*',
     '/intro',
     '/quiz',
     '/result',
